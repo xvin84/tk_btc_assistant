@@ -129,8 +129,11 @@ def session_dir(base: str | Path) -> Path:
     return base / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 
-def make_device(args, cfg: Config) -> Device:
-    return Device(serial=args.serial or cfg.device.serial or None, adb=cfg.device.adb)
+def make_device(args, cfg: Config, check: bool = True) -> Device:
+    device = Device(serial=args.serial or cfg.device.serial or None, adb=cfg.device.adb)
+    if check:
+        device.ensure_ready()
+    return device
 
 
 def resolve_package(device: Device, configured: str | None) -> str | None:
@@ -234,7 +237,7 @@ def cmd_rebuild(args) -> int:
 def cmd_doctor(args) -> int:
     cfg = load_config(args.config)
     setup_logging(args.verbose)
-    device = make_device(args, cfg)
+    device = make_device(args, cfg, check=False)
     ok = True
 
     def check(title, fn):
@@ -249,9 +252,11 @@ def cmd_doctor(args) -> int:
             print(f"[!!] {title}: {e}")
             return None
 
-    devices = check("Устройства adb", device.devices)
-    if not devices:
-        print("     Телефон не виден. Включи «Отладку по USB» и подтверди доступ на телефоне.")
+    check("Устройства adb", device.devices)
+    try:
+        device.ensure_ready()
+    except AdbError as e:
+        print(f"[!!] Телефон не готов: {e}")
         return 1
     check("Размер экрана", device.wm_size)
     check("Поворот (0..3)", device.rotation)

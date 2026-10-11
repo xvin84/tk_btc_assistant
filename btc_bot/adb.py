@@ -16,6 +16,22 @@ class AdbError(RuntimeError):
     pass
 
 
+# Что делать, если `adb devices` показывает телефон не в состоянии device
+STATE_HINTS = {
+    "unauthorized": (
+        "телефон не разрешил отладку этому компьютеру. Разблокируй экран и нажми "
+        "«Разрешить» в окне «Разрешить отладку по USB?» (лучше с галочкой «Всегда "
+        "разрешать с этого компьютера»). Если окна нет: «Для разработчиков» → "
+        "«Отозвать авторизацию отладки по USB», затем `adb kill-server` и переподключи кабель."
+    ),
+    "offline": "телефон offline. Переподключи кабель или выполни `adb kill-server`.",
+    "no": (
+        "нет прав на USB-устройство (no permissions). Нужны udev-правила: в Arch пакет "
+        "android-udev. После установки переподключи кабель."
+    ),
+}
+
+
 @dataclass
 class TouchAxes:
     device: str  # /dev/input/eventN
@@ -37,8 +53,8 @@ class Device:
             cmd += ["-s", self.serial]
         return cmd
 
-    def _run(self, *args: str, timeout: float | None = None) -> bytes:
-        cmd = self._base() + list(args)
+    def _run(self, *args: str, timeout: float | None = None, serial: bool = True) -> bytes:
+        cmd = (self._base() if serial else [self.adb]) + list(args)
         try:
             proc = subprocess.run(cmd, capture_output=True, timeout=timeout or self.timeout)
         except FileNotFoundError as e:
@@ -60,13 +76,33 @@ class Device:
         return shutil.which(self.adb) is not None or _looks_like_path(self.adb)
 
     def devices(self) -> list[tuple[str, str]]:
-        out = subprocess.run([self.adb, "devices"], capture_output=True, timeout=self.timeout)
+        out = self._run("devices", serial=False).decode(errors="replace")
         rows = []
-        for line in out.stdout.decode(errors="replace").splitlines()[1:]:
+        for line in out.splitlines()[1:]:
             parts = line.split()
             if len(parts) >= 2:
                 rows.append((parts[0], parts[1]))
         return rows
+
+    def ensure_ready(self) -> str:
+        """Проверяет, что телефон подключён и разрешил отладку. Возвращает serial."""
+        rows = self.devices()
+        if self.serial:
+            rows = [r for r in rows if r[0] == self.serial]
+            if not rows:
+                raise AdbError(f"Устройство {self.serial} не найдено в `adb devices`")
+        if not rows:
+            raise AdbError("Телефон не виден в `adb devices`. Включи «Отладку по USB» и "
+                           "подключи кабель (режим USB «Передача файлов»)")
+        ready = [serial for serial, state in rows if state == "device"]
+        if len(ready) > 1:
+            raise AdbError(f"Подключено несколько устройств ({', '.join(ready)}): "
+                           "укажи нужное через --serial")
+        if not ready:
+            serial, state = rows[0]
+            hint = STATE_HINTS.get(state, "проверь подключение и `adb devices`.")
+            raise AdbError(f"{serial} в состоянии {state}: {hint}")
+        return ready[0]
 
     # --- экран и ввод ---------------------------------------------------
 

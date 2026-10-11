@@ -1,4 +1,13 @@
-from btc_bot.adb import TouchAxes, parse_touch_axes, parse_touches, touch_to_screen
+import pytest
+
+from btc_bot.adb import (
+    AdbError,
+    Device,
+    TouchAxes,
+    parse_touch_axes,
+    parse_touches,
+    touch_to_screen,
+)
 
 GETEVENT_LP = """\
 add device 1: /dev/input/event5
@@ -54,3 +63,35 @@ def test_touch_mapping_landscape():
     assert touch_to_screen(0, 0, axes, 2780, 1264, 3) == (2780, 0)
     # Без поворота координаты совпадают
     assert touch_to_screen(632, 1390, axes, 1264, 2780, 0) == (632, 1390)
+
+
+def device_with(listing: str, serial: str | None = None) -> Device:
+    device = Device(serial=serial)
+    device._run = lambda *args, **kw: listing.encode()
+    return device
+
+
+def test_ensure_ready_unauthorized_explains_what_to_do():
+    device = device_with("List of devices attached\nf7f494c3\tunauthorized\n\n")
+    with pytest.raises(AdbError, match="Разрешить"):
+        device.ensure_ready()
+
+
+def test_ensure_ready_no_permissions_points_to_udev():
+    listing = ("List of devices attached\nf7f494c3\tno permissions (missing udev rules?); "
+               "see [http://developer.android.com/tools/device.html]\n")
+    with pytest.raises(AdbError, match="udev"):
+        device_with(listing).ensure_ready()
+
+
+def test_ensure_ready_picks_single_device_and_requires_serial_for_many():
+    assert device_with("List of devices attached\nABC\tdevice\n").ensure_ready() == "ABC"
+    many = "List of devices attached\nABC\tdevice\nXYZ\tdevice\n"
+    with pytest.raises(AdbError, match="--serial"):
+        device_with(many).ensure_ready()
+    assert device_with(many, serial="XYZ").ensure_ready() == "XYZ"
+
+
+def test_ensure_ready_without_devices():
+    with pytest.raises(AdbError, match="не виден"):
+        device_with("List of devices attached\n\n").ensure_ready()
