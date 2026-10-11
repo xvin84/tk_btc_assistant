@@ -1,0 +1,27 @@
+[project]
+name = "tk-btc-assistant"
+version = "0.1.0"
+description = "Помощник для Tokyo Ghoul: Break the Chains: автопрохождение цепной кампании"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    # headless: окна OpenCV не нужны, а обычная сборка на Linux требует libGL
+    "opencv-python-headless>=4.8",
+    "numpy>=1.24",
+]
+
+[project.scripts]
+btc-bot = "btc_bot.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["btc_bot"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -50,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="python -m btc_bot",
+    p = argparse.ArgumentParser(prog="btc-bot",
                                 description="Помощник для Tokyo Ghoul: Break the Chains")
     p.add_argument("--config", default=str(PROJECT_ROOT / "config.toml"),
                    help="файл настроек (по умолчанию config.toml в корне проекта)")

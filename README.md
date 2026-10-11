@@ -21,7 +21,8 @@
 
 ## Что нужно
 
-- компьютер с **Python 3.11+**;
+- компьютер с **[uv](https://docs.astral.sh/uv/)** (Arch: `sudo pacman -S uv`).
+  Python 3.11+ uv при необходимости скачает сам;
 - **adb** из Android platform-tools: <https://developer.android.com/tools/releases/platform-tools>;
 - телефон с включённой **отладкой по USB** и кабель (или отладка по Wi-Fi).
 
@@ -40,29 +41,41 @@
 ### Установка
 
 ```bash
-git clone <этот репозиторий>
+git clone git@github.com:xvin84/tk_btc_assistant.git
 cd tk_btc_assistant
-python -m pip install -r requirements.txt
+uv sync
 ```
+
+`uv sync` создаёт окружение `.venv` и ставит туда зависимости из `uv.lock`.
+Системный Python он не трогает. Все команды запускаются через `uv run btc-bot ...`,
+активировать окружение не нужно.
+
+adb на Linux:
+
+- Arch: `sudo pacman -S android-tools`;
+- Debian/Ubuntu: `sudo apt install adb`.
+
+Если `adb devices` пишет `no permissions`, нужны udev-правила (в Arch пакет
+`android-udev`). Потом переподключи кабель.
 
 ## Запуск
 
 1. Открой игру на карте **цепной кампании** (где кнопка «Старт»). Активируй стамину заранее.
 2. Проверь связь и распознавание:
    ```bash
-   python -m btc_bot doctor
+   uv run btc-bot doctor
    ```
    В строке «Текущий экран» должно быть `map_start`.
 3. Первый раз запусти **пробный режим**: бот ничего не нажимает, только пишет,
    что видит и что нажал бы. Пройди один забег руками и посмотри лог:
    ```bash
-   python -m btc_bot run --dry-run
+   uv run btc-bot run --dry-run
    ```
 4. Боевой запуск:
    ```bash
-   python -m btc_bot run                 # пока не кончится стамина
-   python -m btc_bot run --max-runs 3    # три забега и стоп
-   python -m btc_bot run --save-frames   # плюс кадр при каждой смене экрана
+   uv run btc-bot run                 # пока не кончится стамина
+   uv run btc-bot run --max-runs 3    # три забега и стоп
+   uv run btc-bot run --save-frames   # плюс кадр при каждой смене экрана
    ```
    Остановить можно в любой момент по Ctrl+C. Пока бот работает, телефон лучше
    не трогать.
@@ -79,10 +92,10 @@ python -m pip install -r requirements.txt
 нехватки стамины. Позже из неё же будет материал для своей боевой логики.
 
 ```bash
-python -m btc_bot record                 # скриншот при каждом касании экрана
-python -m btc_bot record --interval 2    # плюс скриншот каждые 2 секунды
-python -m btc_bot record --no-taps --interval 1   # только по таймеру
-python -m btc_bot snap defeat            # один скриншот текущего экрана
+uv run btc-bot record                 # скриншот при каждом касании экрана
+uv run btc-bot record --interval 2    # плюс скриншот каждые 2 секунды
+uv run btc-bot record --no-taps --interval 1   # только по таймеру
+uv run btc-bot snap defeat            # один скриншот текущего экрана
 ```
 
 Запись идёт в `recordings/<дата>/`:
@@ -105,14 +118,14 @@ python -m btc_bot snap defeat            # один скриншот текущ�
 (например, `map_start.png` из `snap`) и выполни:
 
 ```bash
-python -m btc_bot rebuild-templates
+uv run btc-bot rebuild-templates
 ```
 
 Новый шаблон, например для экрана поражения:
 
 ```bash
-python -m btc_bot classify samples/device/defeat.png --scores   # что видит бот
-python -m btc_bot crop samples/device/defeat.png 70 95 320 165 --name defeat_title
+uv run btc-bot classify samples/device/defeat.png --scores   # что видит бот
+uv run btc-bot crop samples/device/defeat.png 70 95 320 165 --name defeat_title
 ```
 
 Шаблон `defeat_title` бот подхватит сам: правило для поражения уже есть.
@@ -120,8 +133,7 @@ python -m btc_bot crop samples/device/defeat.png 70 95 320 165 --name defeat_tit
 ## Проверка без телефона
 
 ```bash
-python -m pip install pytest
-python -m pytest
+uv run pytest
 ```
 
 Тесты прогоняют распознавание на всех образцах. Ещё они имитируют забеги на
