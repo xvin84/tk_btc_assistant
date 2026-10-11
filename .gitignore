@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# локальные настройки и результаты запусков
+config.toml
+logs/
+recordings/

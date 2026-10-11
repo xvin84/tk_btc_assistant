@@ -1,0 +1,21 @@
+{
+  "auto_off": {"box": [215, 30, 285, 64], "note": "Кнопка «АВТО» выключена (серая)", "source": "samples/phone_1280/battle_manual.jpg"},
+  "auto_on": {"box": [215, 30, 285, 64], "note": "Кнопка «АВТО» включена (золотая)", "source": "samples/phone_1280/battle_deal.jpg"},
+  "battle_label": {"box": [1072, 498, 1162, 530], "note": "Надпись «Битва» в бою", "source": "samples/phone_1280/battle_deal.jpg"},
+  "battle_pause": {"box": [75, 30, 135, 64], "note": "Кнопка паузы в бою", "source": "samples/phone_1280/battle_deal.jpg"},
+  "battle_won_banner": {"box": [540, 150, 748, 200], "note": "Плашка «...бою» под «Победа в»", "source": "samples/phone_1280/battle_won_interim.jpg"},
+  "battle_won_hint": {"box": [408, 518, 872, 556], "note": "«Скоро автоматически начнется следующий бой...»", "source": "samples/phone_1280/battle_won_interim.jpg"},
+  "btn_battle_start": {"box": [995, 500, 1075, 540], "note": "Кнопка «СТАРТ» в расстановке", "source": "samples/phone_1280/team_setup.jpg"},
+  "btn_claim_all": {"box": [905, 495, 1150, 532], "min_brightness": 0.8, "note": "Кнопка «Получить все» на карте", "source": "samples/phone_1280/map_claim_all.jpg"},
+  "btn_map_start": {"box": [1012, 492, 1100, 538], "min_brightness": 0.8, "note": "Кнопка «Старт» на карте", "source": "samples/phone_1280/map_start.jpg"},
+  "campaign_header": {"box": [128, 18, 302, 46], "min_brightness": 0.8, "note": "Заголовок «Цепная кампания» (карта)", "source": "samples/phone_1280/map_start.jpg"},
+  "chain_reaction_banner": {"box": [418, 226, 910, 270], "note": "«Запуск цепной реакции»", "source": "samples/phone_1280/chain_reaction.jpg"},
+  "depth_up_title": {"box": [312, 168, 968, 210], "note": "«Повышение глубины кампании»", "source": "samples/phone_1280/depth_up.jpg"},
+  "level_cleared_banner": {"box": [440, 262, 912, 312], "note": "«УРОВЕНЬ ПРОЙДЕН»", "source": "samples/phone_1280/level_cleared.jpg"},
+  "loading_text": {"box": [1098, 522, 1190, 545], "note": "Надпись LOADING...", "source": "samples/phone_1280/loading_1.jpg"},
+  "rewards_prompt": {"box": [492, 420, 788, 444], "note": "«Нажмите, чтобы продолжить» под наградами", "source": "samples/phone_1280/rewards_popup.jpg"},
+  "rewards_title": {"box": [120, 185, 420, 262], "note": "«ПОЛУЧЕННЫЕ НАГРАДЫ»", "source": "samples/phone_1280/rewards_popup.jpg"},
+  "team_setup_title": {"box": [130, 18, 272, 46], "note": "Заголовок «Расстановка»", "source": "samples/phone_1280/team_setup.jpg"},
+  "victory_prompt": {"box": [800, 543, 1040, 563], "note": "«Нажмите, чтобы продолжить» на экране итогов", "source": "samples/phone_1280/victory.jpg"},
+  "victory_title": {"box": [75, 98, 312, 160], "note": "«ПОБЕДА» после всех боёв", "source": "samples/phone_1280/victory.jpg"}
+}
