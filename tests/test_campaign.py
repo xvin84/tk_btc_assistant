@@ -30,7 +30,8 @@ def full_run_scenes(battle_start: str = "battle_manual") -> dict[str, Scene]:
         "rewards": Scene(sample("rewards_popup"), tap_box=(0, 0, 1280, 582),
                          on_tap="cleared"),
         "cleared": Scene(sample("level_cleared"), after=3, then="depth"),
-        "depth": Scene(sample("depth_up"), tap_box=(0, 0, 1280, 582), on_tap="map2"),
+        # баннер закрывается нажатием в нижней пятой части экрана
+        "depth": Scene(sample("depth_up"), tap_box=(0, 466, 1280, 582), on_tap="map2"),
         "map2": Scene(sample("map_start"), tap_box=(1012, 492, 1100, 538), on_tap="setup"),
     }
 

@@ -26,6 +26,9 @@ class CampaignConfig:
     max_auto_taps: int = 4  # попыток включить «АВТО» за один забег
     defeat_confirm: float = 8.0  # сколько секунд экран итогов без «ПОБЕДА» = поражение
     overlay_tap_delay: float = 1.5  # ждать перед нажатием на баннер/окно, с
+    # Куда нажимать на баннере «Повышение глубины»: доли ширины и высоты экрана
+    depth_up_tap_x: float = 0.5
+    depth_up_tap_y: float = 0.85
     unknown_timeout: float = 90.0  # неизвестный экран дольше этого = стоп
     state_timeout: float = 180.0  # один и тот же экран (кроме боя) дольше этого = стоп
     battle_timeout: float = 900.0  # бой дольше этого = стоп

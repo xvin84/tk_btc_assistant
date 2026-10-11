@@ -194,7 +194,10 @@ class CampaignBot:
     def _on_depth_up(self, det: Detection, frame, now: float) -> None:
         if self._time_on_screen(now) < self.cfg.overlay_tap_delay:
             return
-        self._tap("depth_up_continue", det.center("depth_up_title"))
+        # По заголовку баннер не закрывается: жмём в пустое место внизу экрана
+        h, w = frame.shape[:2]
+        point = (round(w * self.cfg.depth_up_tap_x), round(h * self.cfg.depth_up_tap_y))
+        self._tap("depth_up_continue", point)
 
     def _on_team_setup(self, det: Detection, frame, now: float) -> None:
         point = det.center("btn_battle_start")
