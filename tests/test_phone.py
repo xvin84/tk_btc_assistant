@@ -2,11 +2,11 @@
 
 import struct
 
-import cv2
 import numpy as np
 import pytest
 
 from btc_bot import adb as adb_mod
+from btc_bot import imaging
 from btc_bot.adb import (
     AdbError,
     Device,
@@ -43,7 +43,7 @@ def test_decode_raw_screencap_rejects_unknown_format():
 
 def test_raw_capture_falls_back_to_png():
     bgr = np.full((4, 6, 3), (10, 20, 30), np.uint8)
-    png = cv2.imencode(".png", bgr)[1].tobytes()
+    png = imaging.encode(bgr, ".png")
     device = Device(capture="raw")
     device._run = lambda *args, **kw: png if "-p" in args else b"garbage"
     assert np.array_equal(device.screenshot(), bgr)

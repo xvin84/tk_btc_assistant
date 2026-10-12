@@ -4,13 +4,27 @@ set -euo pipefail
 
 PROJECT="$(cd "$(dirname "$0")/.." && pwd)"
 
-echo "== Пакеты (OpenCV лежит в x11-repo, он большой: несколько сотен МБ)"
-pkg update -y
-pkg install -y x11-repo
-pkg install -y python python-numpy opencv-python android-tools termux-api
+# Прошлая версия скрипта ставила OpenCV, а он тянет ffmpeg, который часто
+# не настраивается. Недоустановленные пакеты блокируют apt, убираем их.
+leftovers="$(dpkg-query -W -f='${Package} ${Status}\n' \
+    opencv opencv-python python-opencv-python ffmpeg 2>/dev/null \
+    | awk '$4 != "installed" {print $1}' || true)"
+if [ -n "$leftovers" ]; then
+    echo "== Удаляю недоустановленные пакеты: $leftovers"
+    apt-get remove -y $leftovers
+    apt-get autoremove -y
+fi
 
-echo "== Проверка Python-модулей"
-python -c "import cv2, numpy, tomllib; print('OpenCV', cv2.__version__, '| numpy', numpy.__version__)"
+echo "== Обновление пакетов (если спросит про файлы настроек, жми Enter)"
+pkg upgrade -y
+
+echo "== Пакеты: Python, numpy, Pillow, adb, Termux:API"
+pkg install -y python python-numpy python-pillow android-tools termux-api
+
+echo "== Проверка"
+cd "$PROJECT"
+python -c "import numpy, PIL, tomllib; from btc_bot import imaging; \
+print('numpy', numpy.__version__, '| Pillow', PIL.__version__, '| режим:', imaging.BACKEND)"
 
 echo "== Ярлык для виджета Termux:Widget"
 mkdir -p "$HOME/.shortcuts"

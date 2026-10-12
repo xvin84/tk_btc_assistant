@@ -4,13 +4,13 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import cv2
 import numpy as np
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from btc_bot import imaging  # noqa: E402
 from btc_bot.screens import Classifier  # noqa: E402
 from btc_bot.vision import TemplateLibrary, load_image  # noqa: E402
 
@@ -24,7 +24,7 @@ def sample(name: str) -> np.ndarray:
 
 def as_device_frame(img: np.ndarray) -> np.ndarray:
     """Имитирует полноразмерный скриншот с телефона."""
-    return cv2.resize(img, (DEVICE_W, DEVICE_H), interpolation=cv2.INTER_CUBIC)
+    return imaging.resize(img, DEVICE_W, DEVICE_H)
 
 
 @pytest.fixture(scope="session")

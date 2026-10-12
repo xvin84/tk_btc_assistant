@@ -14,7 +14,8 @@ dependencies = [
 btc-bot = "btc_bot.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8"]
+# pillow нужен для проверки запасного режима без OpenCV (как в Termux)
+dev = ["pytest>=8", "pillow>=10"]
 
 [build-system]
 requires = ["hatchling"]

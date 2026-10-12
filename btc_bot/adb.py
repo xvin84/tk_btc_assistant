@@ -10,8 +10,9 @@ import time
 from dataclasses import dataclass
 from typing import Callable, Iterator
 
-import cv2
 import numpy as np
+
+from . import imaging
 
 
 log = logging.getLogger("btc_bot")
@@ -133,7 +134,7 @@ class Device:
                 log.warning("Сырой скриншот не разобрался (%s), перехожу на PNG", e)
                 self.capture = "png"
         data = self._run("exec-out", "screencap", "-p")
-        img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+        img = imaging.decode(data)
         if img is None:
             raise AdbError("Не удалось декодировать скриншот (пустой ответ screencap?)")
         return img

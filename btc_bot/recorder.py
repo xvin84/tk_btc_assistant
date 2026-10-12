@@ -14,9 +14,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-import cv2
 import numpy as np
 
+from . import imaging
 from .adb import AdbError, Device, parse_touches, touch_to_screen
 from .vision import normalize, save_image
 
@@ -166,8 +166,8 @@ class Recorder:
 
         marked = frame.copy()
         radius = max(12, frame.shape[1] // 80)
-        cv2.circle(marked, (x, y), radius, (0, 255, 255), 3)
-        cv2.circle(marked, (x, y), 3, (0, 0, 255), -1)
+        imaging.draw_circle(marked, (x, y), radius, (0, 255, 255), 3)
+        imaging.draw_circle(marked, (x, y), 3, (0, 0, 255), -1)
         save_image(self.out_dir / "annotated" / name, marked)
 
         _, scale = normalize(frame)

@@ -12,8 +12,9 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import cv2
 import numpy as np
+
+from . import imaging
 
 WORK_WIDTH = 1280
 DEFAULT_THRESHOLD = 0.75
@@ -34,15 +35,12 @@ def normalize(frame: np.ndarray) -> tuple[np.ndarray, float]:
     if w == WORK_WIDTH:
         return frame, 1.0
     scale = w / WORK_WIDTH
-    size = (WORK_WIDTH, max(1, round(h / scale)))
-    interp = cv2.INTER_AREA if w > WORK_WIDTH else cv2.INTER_LINEAR
-    return cv2.resize(frame, size, interpolation=interp), scale
+    return imaging.resize(frame, WORK_WIDTH, max(1, round(h / scale))), scale
 
 
 def load_image(path: str | Path) -> np.ndarray:
-    # imdecode вместо imread: imread на Windows не открывает пути с кириллицей
-    data = np.fromfile(str(path), dtype=np.uint8)
-    img = cv2.imdecode(data, cv2.IMREAD_COLOR)
+    # чтение байтов + decode: imread на Windows не открывает пути с кириллицей
+    img = imaging.decode(Path(path).read_bytes())
     if img is None:
         raise ValueError(f"Не удалось прочитать изображение: {path}")
     return img
@@ -51,12 +49,7 @@ def load_image(path: str | Path) -> np.ndarray:
 def save_image(path: str | Path, img: np.ndarray, jpeg_quality: int = 92) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    ext = path.suffix.lower()
-    params = [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality] if ext in (".jpg", ".jpeg") else []
-    ok, buf = cv2.imencode(ext, img, params)
-    if not ok:
-        raise ValueError(f"Не удалось закодировать изображение в {ext}")
-    buf.tofile(str(path))
+    path.write_bytes(imaging.encode(img, path.suffix, jpeg_quality))
 
 
 @dataclass
@@ -99,13 +92,11 @@ class Template:
         if ax2 - ax1 < tw or ay2 - ay1 < th:
             return Match(self.name, 0.0, self.box)
         roi = frame[ay1:ay2, ax1:ax2]
-        res = cv2.matchTemplate(roi, self.image, cv2.TM_CCOEFF_NORMED)
-        res = np.nan_to_num(res, nan=0.0, posinf=0.0, neginf=0.0)
-        _, score, _, (lx, ly) = cv2.minMaxLoc(res)
+        score, (lx, ly) = imaging.match_template(roi, self.image)
         x1, y1 = ax1 + lx, ay1 + ly
         found = frame[y1:y1 + th, x1:x1 + tw]
         brightness = float(found.mean()) / max(float(self.image.mean()), 1.0)
-        return Match(self.name, float(score), (x1, y1, x1 + tw, y1 + th), brightness)
+        return Match(self.name, score, (x1, y1, x1 + tw, y1 + th), brightness)
 
 
 @dataclass

@@ -1,5 +1,4 @@
-import cv2
-
+from btc_bot import imaging
 from btc_bot.campaign import CampaignBot
 from btc_bot.config import CampaignConfig
 
@@ -104,7 +103,7 @@ def test_defeat_does_not_close_game_when_disabled():
 
 def test_no_stamina_stops_without_extra_taps():
     clock = FakeClock()
-    popup = cv2.convertScaleAbs(sample("map_start"), alpha=0.45)  # окно поверх карты
+    popup = imaging.scale_brightness(sample("map_start"), 0.45)  # окно поверх карты
     scenes = {
         "map": Scene(sample("map_start"), tap_box=(1012, 492, 1100, 538), on_tap="popup"),
         "popup": Scene(popup),

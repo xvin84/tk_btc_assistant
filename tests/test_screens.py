@@ -1,6 +1,6 @@
-import cv2
 import pytest
 
+from btc_bot import imaging
 from btc_bot import screens as S
 from btc_bot.vision import normalize
 
@@ -56,5 +56,5 @@ def test_auto_button_state(classifier, name, expected):
 def test_dimmed_map_buttons_are_not_pressable(classifier):
     # Под чужим всплывающим окном карта затемнена: «Старт» нажимать нельзя
     frame, _ = normalize(sample("map_start"))
-    dimmed = cv2.convertScaleAbs(frame, alpha=0.45)
+    dimmed = imaging.scale_brightness(frame, 0.45)
     assert classifier.classify(dimmed).screen == S.UNKNOWN

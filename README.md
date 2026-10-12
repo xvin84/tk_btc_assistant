@@ -89,8 +89,9 @@ adb на Linux:
 ## Запуск прямо на телефоне (Termux)
 
 Бот может работать на самом телефоне, без компьютера. Код тот же: в
-[Termux](https://termux.dev) ставятся Python и OpenCV, а adb телефона
-подключается к самому себе по адресу `127.0.0.1:5555`.
+[Termux](https://termux.dev) ставятся Python, numpy и Pillow, а adb телефона
+подключается к самому себе по адресу `127.0.0.1:5555`. OpenCV на телефоне не
+нужен: без него бот распознаёт экраны через numpy, с теми же оценками.
 
 ### 1. Приложения
 
@@ -109,7 +110,7 @@ pkg install -y git gh
 gh auth login                      # если репозиторий приватный
 gh repo clone xvin84/tk_btc_assistant -- -b claude/tokyo-ghoul-game-agent-kxmox8
 cd tk_btc_assistant
-bash termux/setup.sh               # Python, numpy, OpenCV, adb; ~несколько сотен МБ
+bash termux/setup.sh               # Python, numpy, Pillow, adb
 ```
 
 ### 3. Настройки телефона
