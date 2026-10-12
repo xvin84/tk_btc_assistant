@@ -9,9 +9,10 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from .adb import AdbError, Device
+from .adb import LOCAL_HOST, LOCAL_TCP_PORT, AdbError, Device, connect_local
 from .campaign import CampaignBot
 from .config import Config, load_config
+from .notify import notify
 from .screens import Classifier
 from .vision import (
     PROJECT_ROOT,
@@ -54,7 +55,10 @@ def build_parser() -> argparse.ArgumentParser:
                                 description="Помощник для Tokyo Ghoul: Break the Chains")
     p.add_argument("--config", default=str(PROJECT_ROOT / "config.toml"),
                    help="файл настроек (по умолчанию config.toml в корне проекта)")
-    p.add_argument("--serial", help="серийный номер устройства из `adb devices`")
+    p.add_argument("--serial", help="серийный номер устройства из `adb devices` "
+                                    "(или адрес вида 127.0.0.1:5555)")
+    p.add_argument("--capture", choices=("png", "raw"),
+                   help="как снимать экран: png (по кабелю) или raw (на самом телефоне)")
     p.add_argument("-v", "--verbose", action="store_true", help="подробный лог")
     sub = p.add_subparsers(dest="command")
 
@@ -67,7 +71,23 @@ def build_parser() -> argparse.ArgumentParser:
                    help="сохранять кадр при каждой смене экрана")
     r.add_argument("--no-exit-game", action="store_true",
                    help="не закрывать игру при поражении")
+    r.add_argument("--launch", action="store_true",
+                   help="сначала вывести игру на передний план (запуск с самого телефона)")
     r.set_defaults(func=cmd_run)
+
+    con = sub.add_parser("connect", help="подключить adb телефона к самому себе (Termux)")
+    con.add_argument("--port", type=int,
+                     help="порт с главного экрана «Беспроводной отладки» "
+                          "(если не указан, ищется сам)")
+    con.add_argument("--tcp-port", type=int, default=LOCAL_TCP_PORT,
+                     help="постоянный порт adb (по умолчанию %(default)s)")
+    con.set_defaults(func=cmd_connect)
+
+    pa = sub.add_parser("pair", help="сопряжение с «Беспроводной отладкой» (один раз)")
+    pa.add_argument("port", type=int, help="порт из окна «Подключение с помощью кода»")
+    pa.add_argument("code", help="шестизначный код из того же окна")
+    pa.add_argument("--host", default=LOCAL_HOST)
+    pa.set_defaults(func=cmd_pair)
 
     rec = sub.add_parser("record", help="записывать скриншоты по касаниям и/или по таймеру")
     rec.add_argument("--interval", type=float, help="ещё и скриншот каждые N секунд")
@@ -130,7 +150,8 @@ def session_dir(base: str | Path) -> Path:
 
 
 def make_device(args, cfg: Config, check: bool = True) -> Device:
-    device = Device(serial=args.serial or cfg.device.serial or None, adb=cfg.device.adb)
+    device = Device(serial=args.serial or cfg.device.serial or None, adb=cfg.device.adb,
+                    capture=args.capture or cfg.device.capture)
     if check:
         device.ensure_ready()
     return device
@@ -150,6 +171,16 @@ def resolve_package(device: Device, configured: str | None) -> str | None:
     return None
 
 
+def warn_if_screen_may_sleep(device: Device) -> None:
+    try:
+        value = device.stay_on_setting()
+    except AdbError:
+        return
+    if value == 0:
+        log.warning("Экран может погаснуть посреди забега: поставь телефон на зарядку и "
+                    "включи «Для разработчиков» → «Не выключать экран»")
+
+
 # --- команды ------------------------------------------------------------
 
 def cmd_run(args) -> int:
@@ -166,12 +197,46 @@ def cmd_run(args) -> int:
     setup_logging(args.verbose, out / "bot.log")
     device = make_device(args, cfg)
     package = resolve_package(device, args.package or cfg.device.package)
+    warn_if_screen_may_sleep(device)
+    if args.launch:
+        if not package:
+            raise AdbError("Не знаю, какую игру открыть: укажи --package")
+        log.info("Вывожу игру на передний план")
+        device.launch(package)
+        time.sleep(3)
     classifier = Classifier(TemplateLibrary.load())
     bot = CampaignBot(device, classifier, cfg.campaign, package=package, session_dir=out,
                       dry_run=args.dry_run)
     result = bot.run()
     log.info("Лог и кадры: %s", out)
+    notify(f"BtC бот остановлен: {STOP_TITLES.get(result.kind, result.kind)}",
+           f"{result.reason}. Забегов: {result.runs_done}, глубина +{result.depth_ups}")
     return result.exit_code
+
+
+STOP_TITLES = {
+    "done": "готово",
+    "no_stamina": "кончилась стамина",
+    "defeat": "поражение",
+    "error": "ошибка",
+}
+
+
+def cmd_connect(args) -> int:
+    cfg = load_config(args.config)
+    setup_logging(args.verbose)
+    serial = connect_local(adb=cfg.device.adb, wireless_port=args.port, tcp_port=args.tcp_port)
+    print(f"Подключено: {serial}")
+    print(f"Запуск: python -m btc_bot --serial {serial} --capture raw run --launch")
+    return 0
+
+
+def cmd_pair(args) -> int:
+    cfg = load_config(args.config)
+    setup_logging(args.verbose)
+    out = Device(adb=cfg.device.adb).pair(f"{args.host}:{args.port}", args.code)
+    print(out or "Сопряжение выполнено")
+    return 0
 
 
 def cmd_record(args) -> int:
@@ -261,6 +326,10 @@ def cmd_doctor(args) -> int:
     check("Размер экрана", device.wm_size)
     check("Поворот (0..3)", device.rotation)
     check("Приложение на экране", device.current_package)
+    stay_on = check("«Не выключать экран» (0 = выкл.)", device.stay_on_setting)
+    if stay_on == 0:
+        print("     Для долгой работы включи «Для разработчиков» → «Не выключать экран» "
+              "и держи телефон на зарядке")
     check("Установленные пакеты funcat", lambda: device.packages("funcat"))
 
     started = time.monotonic()

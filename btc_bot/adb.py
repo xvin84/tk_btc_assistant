@@ -2,14 +2,23 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import shutil
 import subprocess
+import time
 from dataclasses import dataclass
-from typing import Iterator
+from typing import Callable, Iterator
 
 import cv2
 import numpy as np
+
+
+log = logging.getLogger("btc_bot")
+
+# Адрес, по которому телефон подключается к своему же adb (запуск из Termux)
+LOCAL_HOST = "127.0.0.1"
+LOCAL_TCP_PORT = 5555
 
 
 class AdbError(RuntimeError):
@@ -40,10 +49,14 @@ class TouchAxes:
 
 
 class Device:
-    def __init__(self, serial: str | None = None, adb: str = "adb", timeout: float = 20.0):
+    def __init__(self, serial: str | None = None, adb: str = "adb", timeout: float = 20.0,
+                 capture: str = "png"):
         self.serial = serial
         self.adb = adb
         self.timeout = timeout
+        # png: screencap -p (сжатие на телефоне, мало данных; хорошо по USB/Wi-Fi);
+        # raw: без сжатия (много данных, зато не грузит процессор; хорошо на самом телефоне)
+        self.capture = capture
 
     # --- низкий уровень -------------------------------------------------
 
@@ -89,6 +102,11 @@ class Device:
         rows = self.devices()
         if self.serial:
             rows = [r for r in rows if r[0] == self.serial]
+            if (not rows or rows[0][1] == "offline") and _is_network_serial(self.serial):
+                # Сетевое подключение (Wi-Fi или 127.0.0.1 из Termux) пропадает при
+                # перезапуске adb-сервера: переподключаемся сами
+                self.connect(self.serial)
+                rows = [r for r in self.devices() if r[0] == self.serial]
             if not rows:
                 raise AdbError(f"Устройство {self.serial} не найдено в `adb devices`")
         if not rows:
@@ -107,6 +125,13 @@ class Device:
     # --- экран и ввод ---------------------------------------------------
 
     def screenshot(self) -> np.ndarray:
+        if self.capture == "raw":
+            data = self._run("exec-out", "screencap")
+            try:
+                return decode_raw_screencap(data)
+            except ValueError as e:
+                log.warning("Сырой скриншот не разобрался (%s), перехожу на PNG", e)
+                self.capture = "png"
         data = self._run("exec-out", "screencap", "-p")
         img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
         if img is None:
@@ -121,6 +146,36 @@ class Device:
 
     def force_stop(self, package: str) -> None:
         self.shell(f"am force-stop {package}")
+
+    def launch(self, package: str) -> None:
+        """Выводит игру на передний план (или запускает, если она закрыта)."""
+        self.shell(f"monkey -p {package} -c android.intent.category.LAUNCHER 1")
+
+    def stay_on_setting(self) -> int | None:
+        """Значение «Не выключать экран» при зарядке (0 = выключено)."""
+        value = self.shell("settings get global stay_on_while_plugged_in").strip()
+        return int(value) if value.isdigit() else None
+
+    # --- сетевое подключение (Wi-Fi, Termux) ----------------------------
+
+    def connect(self, address: str) -> str:
+        out = self._run("connect", address, serial=False, timeout=10).decode(errors="replace")
+        return out.strip()
+
+    def pair(self, address: str, code: str) -> str:
+        out = self._run("pair", address, code, serial=False, timeout=30)
+        return out.decode(errors="replace").strip()
+
+    def tcpip(self, port: int) -> None:
+        self._run("tcpip", str(port))
+
+    def mdns_ports(self) -> list[int]:
+        """Порты «Беспроводной отладки», найденные через mDNS."""
+        try:
+            out = self._run("mdns", "services", serial=False, timeout=10)
+        except AdbError:
+            return []
+        return parse_mdns_ports(out.decode(errors="replace"))
 
     # --- сведения об устройстве -----------------------------------------
 
@@ -178,6 +233,110 @@ class Device:
 
 def _looks_like_path(adb: str) -> bool:
     return "/" in adb or "\\" in adb
+
+
+def _is_network_serial(serial: str) -> bool:
+    return re.fullmatch(r"[\w.-]+:\d+", serial) is not None
+
+
+# Форматы пикселей Android: RGBA_8888, RGBX_8888, BGRA_8888
+_RAW_FORMATS = {1: (0, 1, 2), 2: (0, 1, 2), 5: (2, 1, 0)}
+
+
+def decode_raw_screencap(data: bytes) -> np.ndarray:
+    """Разбирает вывод `screencap` без -p: заголовок, затем пиксели по 4 байта.
+
+    Заголовок 12 байт (ширина, высота, формат) или 16 (плюс цветовое
+    пространство) в зависимости от версии Android: вычисляем по длине.
+    """
+    if len(data) < 12:
+        raise ValueError("слишком короткий ответ")
+    w, h, fmt = np.frombuffer(data[:12], dtype="<u4")
+    w, h, fmt = int(w), int(h), int(fmt)
+    if fmt not in _RAW_FORMATS:
+        raise ValueError(f"формат пикселей {fmt} не поддерживается")
+    header = len(data) - w * h * 4
+    if header not in (12, 16):
+        raise ValueError(f"размер {len(data)} не сходится с {w}x{h}")
+    pixels = np.frombuffer(data, dtype=np.uint8, offset=header).reshape(h, w, 4)
+    r, g, b = _RAW_FORMATS[fmt]
+    return np.ascontiguousarray(pixels[:, :, (b, g, r)])
+
+
+def parse_mdns_ports(text: str) -> list[int]:
+    ports = []
+    for line in text.splitlines():
+        if "_adb-tls-connect._tcp" in line:
+            m = re.search(r":(\d+)\s*$", line.strip())
+            if m:
+                ports.append(int(m.group(1)))
+    return ports
+
+
+CONNECT_HELP = """\
+Не получилось подключиться к adb этого телефона. Варианты:
+  1) С компьютера (один раз после каждой перезагрузки телефона): подключи кабель
+     и выполни `adb tcpip 5555`. Потом здесь: python -m btc_bot connect
+  2) Без компьютера, через «Беспроводную отладку» (нужен Wi-Fi):
+     - «Для разработчиков» → «Беспроводная отладка» → включить;
+     - один раз: «Подключение устройства с помощью кода» и здесь
+       python -m btc_bot pair <порт из окна с кодом> <код>
+       (удобно в режиме разделённого экрана, окно с кодом не должно закрыться);
+     - затем: python -m btc_bot connect --port <порт с главного экрана беспроводной отладки>"""
+
+
+def connect_local(
+    adb: str = "adb",
+    wireless_port: int | None = None,
+    tcp_port: int = LOCAL_TCP_PORT,
+    host: str = LOCAL_HOST,
+    sleep: Callable[[float], None] = time.sleep,
+    auth_wait: float = 60.0,
+) -> str:
+    """Подключает adb телефона к самому себе и возвращает serial вида 127.0.0.1:5555.
+
+    Сначала пробуем постоянный порт tcp_port (его открывает `adb tcpip`).
+    Если он закрыт, подключаемся через порт «Беспроводной отладки» (указанный
+    или найденный через mDNS) и переводим adb на постоянный порт: он живёт
+    до перезагрузки и не зависит от Wi-Fi.
+    """
+    probe = Device(adb=adb)
+    target = f"{host}:{tcp_port}"
+    if _try_connect(probe, target, sleep, auth_wait):
+        return target
+
+    ports = [wireless_port] if wireless_port else probe.mdns_ports()
+    for port in ports:
+        address = f"{host}:{port}"
+        if not _try_connect(probe, address, sleep, auth_wait):
+            continue
+        log.info("Подключился через беспроводную отладку (%s), открываю порт %d", address,
+                 tcp_port)
+        Device(serial=address, adb=adb).tcpip(tcp_port)
+        for _ in range(10):
+            sleep(2)
+            if _try_connect(probe, target, sleep, auth_wait):
+                return target
+    raise AdbError(CONNECT_HELP)
+
+
+def _try_connect(probe: Device, address: str, sleep: Callable[[float], None],
+                 auth_wait: float) -> bool:
+    try:
+        probe.connect(address)
+    except AdbError:
+        return False
+    waited = 0.0
+    while True:
+        state = dict(probe.devices()).get(address)
+        if state == "device":
+            return True
+        if state != "unauthorized" or waited >= auth_wait:
+            return False
+        if waited == 0:
+            log.info("Подтверди на экране «Разрешить отладку» (лучше «Всегда разрешать»)")
+        sleep(2)
+        waited += 2
 
 
 def parse_touch_axes(getevent_lp: str) -> TouchAxes | None:

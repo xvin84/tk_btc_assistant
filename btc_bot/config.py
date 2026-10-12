@@ -12,6 +12,7 @@ class DeviceConfig:
     adb: str = "adb"
     serial: str = ""  # пусто = единственное подключённое устройство
     package: str = ""  # пусто = взять приложение, открытое при запуске бота
+    capture: str = "png"  # png (по кабелю/Wi-Fi) или raw (бот на самом телефоне)
 
 
 @dataclass
