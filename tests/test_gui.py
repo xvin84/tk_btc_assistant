@@ -34,11 +34,16 @@ def app():
 @pytest.fixture
 def make_window(app, monkeypatch, tmp_path):
     monkeypatch.setattr(W, "load_gui_settings", lambda: {"accepted_risk": True})
+    # Живое превью ходит в настоящий adb; где оно нужно, тест включает его сам
+    real_start_live = W.MainWindow._start_live
+    monkeypatch.setattr(W.MainWindow, "_start_live", lambda self: None)
     monkeypatch.setattr(W, "save_gui_settings", lambda data: None)
     monkeypatch.setattr(W, "resolve_package", lambda device, configured: "com.funcat.tgbtc")
     windows = []
 
-    def make(scenes=None, start="map", probe=None):
+    def make(scenes=None, start="map", probe=None, live=False):
+        if live:
+            monkeypatch.setattr(W.MainWindow, "_start_live", real_start_live)
         if scenes is not None:
             monkeypatch.setattr(W, "Device", lambda serial=None, adb=None, capture="png":
                                 FakeDevice(scenes, start, FastClock()))
@@ -57,6 +62,7 @@ def make_window(app, monkeypatch, tmp_path):
     for win in windows:
         if win.bot is not None:
             win.bot.request_stop()
+        win._stop_live()
         win.close()
 
 
@@ -121,3 +127,14 @@ def test_stop_button_stops_bot(app, make_window):
 
     assert win.hero_state.text() == "Остановлено"
     assert win.start_btn.text().endswith("Запустить")
+
+
+def test_live_preview_notices_campaign_map(app, make_window):
+    # Проверка застала бой, потом игрок сам открыл карту: окно замечает это без «Проверить»
+    probe = dict(ready_probe(), frame=sample("battle_deal"), screen="battle")
+    scenes = {"map": Scene(sample("map_start"))}
+    win = make_window(scenes, probe=probe, live=True)
+    win.check_connection()
+    wait(app, lambda: win.hero_state.text() == "Готов к запуску")
+
+    assert win.screen_label.text().endswith(W.SCREEN_NAMES["map_start"])

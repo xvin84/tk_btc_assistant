@@ -50,6 +50,27 @@ def test_raw_capture_falls_back_to_png():
     assert device.capture == "png"
 
 
+def test_gzip_capture_unpacks_raw_frame():
+    import gzip
+
+    bgr = np.arange(4 * 6 * 3, dtype=np.uint8).reshape(4, 6, 3)
+    device = Device(capture="gzip")
+    calls = []
+    device._run = lambda *args, **kw: calls.append(args) or gzip.compress(raw_frame(bgr))
+    assert np.array_equal(device.screenshot(), bgr)
+    assert calls == [("exec-out", "screencap | gzip -1")]
+    assert device.capture == "gzip"
+
+
+def test_gzip_capture_without_gzip_falls_back_to_png():
+    bgr = np.full((4, 6, 3), (10, 20, 30), np.uint8)
+    png = imaging.encode(bgr, ".png")
+    device = Device(capture="gzip")
+    device._run = lambda *args, **kw: png if "-p" in args else b"/system/bin/sh: gzip: not found"
+    assert np.array_equal(device.screenshot(), bgr)
+    assert device.capture == "png"
+
+
 def test_parse_mdns_ports():
     text = ("List of discovered mdns services\n"
             "adb-f7f494c3-AbCdEf\t_adb-tls-pairing._tcp\t192.168.1.23:40111\n"

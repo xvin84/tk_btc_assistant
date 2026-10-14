@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import time
+import zlib
 from dataclasses import dataclass
 from typing import Callable, Iterator
 
@@ -51,11 +52,12 @@ class TouchAxes:
 
 class Device:
     def __init__(self, serial: str | None = None, adb: str = "adb", timeout: float = 20.0,
-                 capture: str = "png"):
+                 capture: str = "gzip"):
         self.serial = serial
         self.adb = adb
         self.timeout = timeout
-        # png: screencap -p (сжатие на телефоне, мало данных; хорошо по USB/Wi-Fi);
+        # gzip: сырой кадр, сжатый gzip -1 на телефоне (быстрее всего по кабелю);
+        # png: screencap -p (сжатие PNG на телефоне медленное, 1,5–3 с на большом экране);
         # raw: без сжатия (много данных, зато не грузит процессор; хорошо на самом телефоне)
         self.capture = capture
 
@@ -126,12 +128,16 @@ class Device:
     # --- экран и ввод ---------------------------------------------------
 
     def screenshot(self) -> np.ndarray:
-        if self.capture == "raw":
-            data = self._run("exec-out", "screencap")
+        if self.capture in ("raw", "gzip"):
+            command = "screencap | gzip -1" if self.capture == "gzip" else "screencap"
+            data = self._run("exec-out", command)
             try:
+                if self.capture == "gzip":
+                    data = _gunzip(data)
                 return decode_raw_screencap(data)
             except ValueError as e:
-                log.warning("Сырой скриншот не разобрался (%s), перехожу на PNG", e)
+                log.warning("Скриншот в режиме %s не разобрался (%s), перехожу на PNG",
+                            self.capture, e)
                 self.capture = "png"
         data = self._run("exec-out", "screencap", "-p")
         img = imaging.decode(data)
@@ -238,6 +244,14 @@ def _looks_like_path(adb: str) -> bool:
 
 def _is_network_serial(serial: str) -> bool:
     return re.fullmatch(r"[\w.-]+:\d+", serial) is not None
+
+
+def _gunzip(data: bytes) -> bytes:
+    try:
+        return zlib.decompress(data, 16 + zlib.MAX_WBITS)
+    except zlib.error as e:
+        # Нет gzip на телефоне: вместо архива пришло сообщение об ошибке
+        raise ValueError(f"не gzip ({data[:60]!r})") from e
 
 
 # Форматы пикселей Android: RGBA_8888, RGBX_8888, BGRA_8888

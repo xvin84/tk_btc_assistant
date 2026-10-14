@@ -62,7 +62,8 @@ log = logging.getLogger("btc_bot")
 REPO_URL = "https://github.com/xvin84/tk_btc_assistant"
 SETTINGS_PATH = DATA_DIR / "gui.json"
 TICK_MS = 250
-PREVIEW_EVERY = 1.0  # как часто обновлять картинку экрана во время работы, с
+LIVE_PAUSE = 0.05  # пауза между снимками живого превью, пока бот не запущен, с
+LIVE_MAX_FAILURES = 3  # столько сбоев adb подряд = связь с телефоном потеряна
 PREVIEW_MAX_WIDTH = 960  # крупнее картинку в окне не показываем
 HERO_SUB_MAX = 70  # длиннее подпись в карточке статуса обрезается
 
@@ -268,8 +269,12 @@ class MainWindow(QMainWindow):
 
         self.bot: CampaignBot | None = None
         self.started_at = 0.0
-        self.last_preview = 0.0
+        self.shown_raw: np.ndarray | None = None
         self.last_screen: str | None = None
+        self.live_stop = threading.Event()
+        self.live_thread: threading.Thread | None = None
+        # Итог прошлого запуска держится в карточке статуса до новой проверки или запуска
+        self.keep_result = False
         self.session: Path | None = None
         self.file_handler: logging.Handler | None = None
 
@@ -569,7 +574,9 @@ class MainWindow(QMainWindow):
     def check_connection(self) -> None:
         if self.checking or self.bot is not None:
             return
+        self._stop_live()
         self.checking = True
+        self.keep_result = False
         self.check_btn.setEnabled(False)
         self.check_btn.setText("Проверяю…")
         self._set_hero("Проверяю телефон…", "Связываюсь через adb", theme.WARN)
@@ -650,15 +657,76 @@ class MainWindow(QMainWindow):
         self.phone_ready = True
         model = info.get("model") or ""
         self.row_phone.set(theme.OK, f"{model} ({self.serial})" if model else self.serial)
-        screen = info["screen"]
-        self._show_frame(info["frame"], screen)
+        self._show_frame(info["frame"], info["screen"])
+        self.last_screen = None
+        self._show_game_state(info["screen"])
+        self._refresh_start()
+        self._start_live()
+
+    def _show_game_state(self, screen: str) -> None:
+        """Строка «Игра» и карточка статуса, пока бот не запущен."""
+        if screen == self.last_screen:
+            return
+        self.last_screen = screen
         if screen == "map_start":
             self.row_game.set(theme.OK, SCREEN_NAMES[screen])
-            self._set_hero("Готов к запуску", "Нажми «Запустить»", theme.OK)
+            if not self.keep_result:
+                self._set_hero("Готов к запуску", "Нажми «Запустить»", theme.OK)
         else:
             self.row_game.set(theme.WARN, f"{SCREEN_NAMES.get(screen, screen)}. Открой карту "
-                                          "цепной кампании с кнопкой «Старт» и проверь ещё раз")
-            self._set_hero("Телефон подключён", "Открой карту цепной кампании", theme.WARN)
+                                          "цепной кампании с кнопкой «Старт»")
+            if not self.keep_result:
+                self._set_hero("Телефон подключён", "Открой карту цепной кампании", theme.WARN)
+
+    # --- живое превью, пока бот не запущен ------------------------------
+
+    def _start_live(self) -> None:
+        if not self.phone_ready or self.bot is not None:
+            return
+        if self.live_thread is not None and self.live_thread.is_alive():
+            return
+        stop = threading.Event()
+        self.live_stop = stop
+        device = Device(serial=self.serial, adb=self.adb_path, capture=self.cfg.device.capture)
+
+        def loop() -> None:
+            failures = 0
+            while not stop.is_set():
+                try:
+                    frame = device.screenshot()
+                except AdbError as e:
+                    failures += 1
+                    if failures >= LIVE_MAX_FAILURES:
+                        self.bridge.call.emit(self._live_failed, (stop, e))
+                        return
+                    stop.wait(1.0)
+                    continue
+                failures = 0
+                screen = self.classifier.classify(normalize(frame)[0]).screen
+                self.bridge.call.emit(self._live_frame, (stop, frame, screen))
+                stop.wait(LIVE_PAUSE)
+
+        self.live_thread = threading.Thread(target=loop, daemon=True)
+        self.live_thread.start()
+
+    def _stop_live(self) -> None:
+        self.live_stop.set()
+
+    def _live_frame(self, value: tuple) -> None:
+        stop, frame, screen = value
+        if stop.is_set() or self.bot is not None:
+            return  # кадр опоздал: уже запущен бот или идёт новая проверка
+        self._show_frame(frame, screen)
+        self._show_game_state(screen)
+
+    def _live_failed(self, value: tuple) -> None:
+        stop, error = value
+        if stop.is_set() or self.bot is not None:
+            return
+        self.phone_ready = False
+        self.row_phone.set(theme.BAD, f"связь потеряна: {error}")
+        self.row_game.set(theme.IDLE, "—")
+        self._set_hero("Нет связи с телефоном", "Проверь кабель и нажми «Проверить»", theme.BAD)
         self._refresh_start()
 
     def _probe_failed(self, error: Exception) -> None:
@@ -726,6 +794,8 @@ class MainWindow(QMainWindow):
     def start(self) -> None:
         if not self.phone_ready or self.bot is not None:
             return
+        self._stop_live()
+        self.keep_result = False
         cfg = self._run_config()
         self.session = session_dir(cfg.logs_dir)
         self.session.mkdir(parents=True, exist_ok=True)
@@ -739,7 +809,7 @@ class MainWindow(QMainWindow):
                           dry_run=dry_run)
         self.bot = bot
         self.started_at = time.monotonic()
-        self.last_preview = 0.0
+        self.shown_raw = None
         self.last_screen = None
 
         def work() -> RunResult:
@@ -777,9 +847,11 @@ class MainWindow(QMainWindow):
         h, rest = divmod(elapsed, 3600)
         self.stat_time.setText(f"{h}:{rest // 60:02d}:{rest % 60:02d}" if h
                                else f"{rest // 60}:{rest % 60:02d}")
-        if (force or now - self.last_preview >= PREVIEW_EVERY) and bot.last_raw is not None:
-            self.last_preview = now
-            self._show_frame(bot.last_raw, bot.screen)
+        # Новый кадр показываем сразу, как только бот его снял
+        raw = bot.last_raw
+        if raw is not None and (force or raw is not self.shown_raw):
+            self.shown_raw = raw
+            self._show_frame(raw, bot.screen)
         if bot.screen != self.last_screen and not bot.stop_requested:
             self.last_screen = bot.screen
             mode = "Пробный режим" if bot.dry_run else "Работает"
@@ -822,6 +894,8 @@ class MainWindow(QMainWindow):
             w.setEnabled(True)
         self._sync_limit()
         self._refresh_start()
+        self.keep_result = True
+        self._start_live()
 
     # --- мелочи ---------------------------------------------------------
 
@@ -873,5 +947,6 @@ class MainWindow(QMainWindow):
                 event.ignore()
                 return
             self.bot.request_stop()
+        self._stop_live()
         logging.getLogger("btc_bot").removeHandler(self.log_handler)
         event.accept()

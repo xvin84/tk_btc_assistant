@@ -12,13 +12,13 @@ class DeviceConfig:
     adb: str = "adb"
     serial: str = ""  # пусто = единственное подключённое устройство
     package: str = ""  # пусто = взять приложение, открытое при запуске бота
-    capture: str = "png"  # png (по кабелю/Wi-Fi) или raw (бот на самом телефоне)
+    capture: str = "gzip"  # gzip/png (по кабелю/Wi-Fi) или raw (бот на самом телефоне)
 
 
 @dataclass
 class CampaignConfig:
     max_runs: int = 0  # сколько забегов (этапов) пройти; 0 = без ограничения
-    poll_interval: float = 1.0  # пауза между скриншотами, с
+    poll_interval: float = 0.3  # пауза между скриншотами, с (сам скриншот ~1 с)
     tap_cooldown: float = 4.0  # не жать одну и ту же кнопку чаще, с
     max_start_taps: int = 3  # нажатий «Старт» без перехода, после которых стоп (нет стамины?)
     start_timeout: float = 20.0  # сколько ждать расстановку после «Старт», с

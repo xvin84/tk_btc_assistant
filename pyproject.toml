@@ -1,6 +1,6 @@
 [project]
 name = "tk-btc-assistant"
-version = "0.2.0"
+version = "0.2.1"
 description = "Помощник для Tokyo Ghoul: Break the Chains: автопрохождение цепной кампании"
 readme = "README.md"
 license = "MIT"

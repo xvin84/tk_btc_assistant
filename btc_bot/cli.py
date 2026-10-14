@@ -59,8 +59,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="файл настроек (по умолчанию config.toml в корне проекта)")
     p.add_argument("--serial", help="серийный номер устройства из `adb devices` "
                                     "(или адрес вида 127.0.0.1:5555)")
-    p.add_argument("--capture", choices=("png", "raw"),
-                   help="как снимать экран: png (по кабелю) или raw (на самом телефоне)")
+    p.add_argument("--capture", choices=("gzip", "png", "raw"),
+                   help="как снимать экран: gzip (по кабелю, быстрее всего), png или raw "
+                        "(на самом телефоне)")
     p.add_argument("-v", "--verbose", action="store_true", help="подробный лог")
     sub = p.add_subparsers(dest="command")
 
