@@ -15,13 +15,12 @@ from pathlib import Path
 import numpy as np
 
 from . import imaging
+from .paths import BUNDLE_DIR as PROJECT_ROOT, TEMPLATES_DIR
 
 WORK_WIDTH = 1280
 DEFAULT_THRESHOLD = 0.75
 DEFAULT_MARGIN = 40
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-TEMPLATES_DIR = PROJECT_ROOT / "templates"
 MANIFEST_NAME = "manifest.json"
 
 

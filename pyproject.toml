@@ -3,6 +3,7 @@ name = "tk-btc-assistant"
 version = "0.1.0"
 description = "Помощник для Tokyo Ghoul: Break the Chains: автопрохождение цепной кампании"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
     # headless: окна OpenCV не нужны, а обычная сборка на Linux требует libGL
@@ -13,9 +14,13 @@ dependencies = [
 [project.scripts]
 btc-bot = "btc_bot.cli:main"
 
+[project.gui-scripts]
+btc-bot-gui = "btc_bot.gui:main"
+
 [dependency-groups]
 # pillow нужен для проверки запасного режима без OpenCV (как в Termux)
 dev = ["pytest>=8", "pillow>=10"]
+build = ["pyinstaller>=6.10"]
 
 [build-system]
 requires = ["hatchling"]

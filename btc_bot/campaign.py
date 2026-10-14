@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,7 +39,7 @@ class Clock:
 
 
 class StopBot(Exception):
-    """Остановка бота. kind: done | no_stamina | defeat | error."""
+    """Остановка бота. kind: done | no_stamina | defeat | error | stopped."""
 
     def __init__(self, kind: str, reason: str):
         super().__init__(reason)
@@ -56,7 +57,7 @@ class RunResult:
 
     @property
     def exit_code(self) -> int:
-        return {"done": 0, "no_stamina": 0, "defeat": 2}.get(self.kind, 1)
+        return {"done": 0, "no_stamina": 0, "defeat": 2, "stopped": 130}.get(self.kind, 1)
 
 
 class CampaignBot:
@@ -93,6 +94,11 @@ class CampaignBot:
         self.adb_failures = 0
         self.last_raw: np.ndarray | None = None
         self.scale = 1.0
+        self._stop_requested = threading.Event()
+
+    def request_stop(self) -> None:
+        """Попросить бота остановиться (из другого потока, например из окна)."""
+        self._stop_requested.set()
 
     # --- основной цикл --------------------------------------------------
 
@@ -101,6 +107,7 @@ class CampaignBot:
         log.info("Бот запущен%s. Игра: %s", mode, self.package or "не определена")
         try:
             while True:
+                self._check_stop_request()
                 try:
                     self.step()
                     self.adb_failures = 0
@@ -111,6 +118,7 @@ class CampaignBot:
                         raise StopBot("error", f"ADB не отвечает: {e}") from e
                     self.clock.sleep(2.0)
                     continue
+                self._check_stop_request()
                 self.clock.sleep(self.cfg.poll_interval)
         except StopBot as stop:
             return self._finish(stop)
@@ -130,6 +138,10 @@ class CampaignBot:
         if not self.dry_run:  # в пробном режиме играет человек, торопить его незачем
             self._check_timeouts(now)
         return det
+
+    def _check_stop_request(self) -> None:
+        if self._stop_requested.is_set():
+            raise StopBot("stopped", "Остановлено пользователем")
 
     # --- смена экрана ---------------------------------------------------
 
@@ -307,7 +319,7 @@ class CampaignBot:
             log.warning("Не удалось сохранить кадр %s: %s", name, e)
 
     def _finish(self, stop: StopBot) -> RunResult:
-        level = logging.INFO if stop.kind in ("done", "no_stamina") else logging.WARNING
+        level = logging.INFO if stop.kind in ("done", "no_stamina", "stopped") else logging.WARNING
         log.log(level, "Остановка (%s): %s", stop.kind, stop.reason)
         self._save_frame(f"stop_{stop.kind}")
 

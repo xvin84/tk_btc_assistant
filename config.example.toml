@@ -1,7 +1,7 @@
 # Скопируй в config.toml и поменяй что нужно. Все параметры необязательные.
 
 [device]
-# Путь к adb, если его нет в PATH (Windows: 'C:\platform-tools\adb.exe')
+# Путь к adb; "adb" = искать в PATH и в папке platform-tools рядом с программой
 adb = "adb"
 # Серийный номер из `adb devices`; пусто = единственный подключённый телефон
 serial = ""

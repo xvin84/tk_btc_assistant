@@ -161,3 +161,24 @@ def test_adb_glitch_is_retried_and_persistent_failure_stops():
     assert result.kind == "error"
     assert "ADB" in result.reason
     assert calls["n"] == 10  # разовый сбой пережили, пять подряд — стоп
+
+
+def test_stop_request_from_window_stops_without_closing_game():
+    clock = FakeClock()
+    scenes = {"battle": Scene(sample("battle_deal"))}
+    device = FakeDevice(scenes, "battle", clock)
+    bot = make_bot(device, clock)
+    real_sleep = clock.sleep
+
+    def sleep(seconds):
+        real_sleep(seconds)
+        if clock.now() >= 5:
+            bot.request_stop()
+
+    clock.sleep = sleep
+    result = bot.run()
+
+    assert result.kind == "stopped"
+    assert result.exit_code == 130
+    assert device.stopped == []
+    assert clock.now() < 10

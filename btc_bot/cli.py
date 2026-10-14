@@ -13,6 +13,8 @@ from .adb import LOCAL_HOST, LOCAL_TCP_PORT, AdbError, Device, connect_local
 from .campaign import CampaignBot
 from .config import Config, load_config
 from .notify import notify
+from .paths import CONFIG_PATH, DATA_DIR
+from .platform_tools import find_adb
 from .screens import Classifier
 from .vision import (
     PROJECT_ROOT,
@@ -53,7 +55,7 @@ def main(argv: list[str] | None = None) -> int:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="btc-bot",
                                 description="Помощник для Tokyo Ghoul: Break the Chains")
-    p.add_argument("--config", default=str(PROJECT_ROOT / "config.toml"),
+    p.add_argument("--config", default=str(CONFIG_PATH),
                    help="файл настроек (по умолчанию config.toml в корне проекта)")
     p.add_argument("--serial", help="серийный номер устройства из `adb devices` "
                                     "(или адрес вида 127.0.0.1:5555)")
@@ -123,6 +125,9 @@ def build_parser() -> argparse.ArgumentParser:
     rb = sub.add_parser("rebuild-templates",
                         help="перевырезать все шаблоны из исходных скриншотов")
     rb.set_defaults(func=cmd_rebuild)
+
+    g = sub.add_parser("gui", help="открыть окно программы")
+    g.set_defaults(func=cmd_gui)
     return p
 
 
@@ -145,12 +150,13 @@ def setup_logging(verbose: bool, log_file: Path | None = None) -> None:
 def session_dir(base: str | Path) -> Path:
     base = Path(base)
     if not base.is_absolute():
-        base = PROJECT_ROOT / base
+        base = DATA_DIR / base
     return base / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 
 def make_device(args, cfg: Config, check: bool = True) -> Device:
-    device = Device(serial=args.serial or cfg.device.serial or None, adb=cfg.device.adb,
+    adb = find_adb(cfg.device.adb) or cfg.device.adb
+    device = Device(serial=args.serial or cfg.device.serial or None, adb=adb,
                     capture=args.capture or cfg.device.capture)
     if check:
         device.ensure_ready()
@@ -297,6 +303,12 @@ def cmd_rebuild(args) -> int:
     names = rebuild_templates()
     print(f"Перевырезано шаблонов: {len(names)}")
     return 0
+
+
+def cmd_gui(args) -> int:
+    from .gui import main as gui_main
+
+    return gui_main(config_path=args.config)
 
 
 def cmd_doctor(args) -> int:

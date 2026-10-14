@@ -8,3 +8,10 @@ venv/
 config.toml
 logs/
 recordings/
+gui.json
+platform-tools/
+
+# сборка
+build/
+dist/
+*.zip
