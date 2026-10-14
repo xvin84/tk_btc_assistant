@@ -1,18 +1,22 @@
 """Точка входа собранной программы (PyInstaller)."""
 
+import os
 import sys
 
 
 def self_test() -> int:
-    """Проверка сборки в CI: шаблоны и Tk на месте, окно не открываем."""
-    import tkinter  # noqa: F401
+    """Проверка сборки в CI: Qt, шаблоны и окно собираются без показа на экране."""
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    from PySide6.QtWidgets import QApplication
 
-    from btc_bot.screens import Classifier
-    from btc_bot.vision import TemplateLibrary
+    from btc_bot.config import Config
+    from btc_bot.gui.theme import apply_theme
+    from btc_bot.gui.window import MainWindow
 
-    lib = TemplateLibrary.load()
-    Classifier(lib)
-    return 0 if len(lib.templates) >= 10 else 1
+    app = QApplication([])
+    apply_theme(app)
+    window = MainWindow(Config())
+    return 0 if len(window.classifier.lib.templates) >= 10 else 1
 
 
 if __name__ == "__main__":

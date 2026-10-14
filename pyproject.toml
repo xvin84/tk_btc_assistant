@@ -1,6 +1,6 @@
 [project]
 name = "tk-btc-assistant"
-version = "0.1.0"
+version = "0.2.0"
 description = "Помощник для Tokyo Ghoul: Break the Chains: автопрохождение цепной кампании"
 readme = "README.md"
 license = "MIT"
@@ -9,6 +9,8 @@ dependencies = [
     # headless: окна OpenCV не нужны, а обычная сборка на Linux требует libGL
     "opencv-python-headless>=4.8",
     "numpy>=1.24",
+    # окно программы; Essentials без лишних модулей Qt
+    "PySide6-Essentials>=6.6",
 ]
 
 [project.scripts]

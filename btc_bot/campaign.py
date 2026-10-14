@@ -100,6 +100,10 @@ class CampaignBot:
         """Попросить бота остановиться (из другого потока, например из окна)."""
         self._stop_requested.set()
 
+    @property
+    def stop_requested(self) -> bool:
+        return self._stop_requested.is_set()
+
     # --- основной цикл --------------------------------------------------
 
     def run(self) -> RunResult:

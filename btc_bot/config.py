@@ -17,7 +17,7 @@ class DeviceConfig:
 
 @dataclass
 class CampaignConfig:
-    max_runs: int = 0  # сколько забегов (по 5 боёв) пройти; 0 = без ограничения
+    max_runs: int = 0  # сколько забегов (этапов) пройти; 0 = без ограничения
     poll_interval: float = 1.0  # пауза между скриншотами, с
     tap_cooldown: float = 4.0  # не жать одну и ту же кнопку чаще, с
     max_start_taps: int = 3  # нажатий «Старт» без перехода, после которых стоп (нет стамины?)
