@@ -49,6 +49,7 @@ from ..adb import AdbError, Device
 from ..campaign import CampaignBot, RunResult
 from ..cli import STOP_TITLES, resolve_package, session_dir
 from ..config import Config
+from ..i18n import available_languages, current_language, tr
 from ..notify import notify
 from ..paths import DATA_DIR
 from ..platform_tools import download_platform_tools, find_adb
@@ -85,7 +86,14 @@ SCREEN_NAMES = {
     "unknown": "не распознан",
 }
 
-# Заголовок карточки статуса и цвет точки после остановки
+def screen_name(screen: str | None) -> str:
+    """Название экрана для людей на текущем языке."""
+    if not screen:
+        return "—"
+    return tr(SCREEN_NAMES[screen]) if screen in SCREEN_NAMES else screen
+
+
+# Заголовок карточки статуса и цвет точки после остановки (переводится при показе)
 RESULT_STATE = {
     "done": ("Готово", theme.OK),
     "no_stamina": ("Закончилась стамина", theme.OK),
@@ -144,7 +152,7 @@ class Preview(QLabel):
     ASPECT = 582 / 1280  # высота к ширине у рабочего кадра
 
     def __init__(self):
-        super().__init__("Нет картинки")
+        super().__init__(tr("Нет картинки"))
         self.setObjectName("preview")
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         # Ширину не берём из картинки, иначе окно растёт само; высота следует за шириной
@@ -218,7 +226,7 @@ def save_gui_settings(data: dict) -> None:
         SETTINGS_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2),
                                  encoding="utf-8")
     except OSError as e:
-        log.warning("Не удалось сохранить настройки окна: %s", e)
+        log.warning(tr("Не удалось сохранить настройки окна: %s"), e)
 
 
 def open_path(path: Path) -> None:
@@ -254,6 +262,9 @@ def _hint(text: str) -> QLabel:
 # --- окно -----------------------------------------------------------------
 
 class MainWindow(QMainWindow):
+    # Пользователь выбрал другой язык: окно пересоздаётся снаружи (gui.main)
+    language_changed = Signal(str)
+
     def __init__(self, cfg: Config):
         super().__init__()
         self.cfg = cfg
@@ -278,7 +289,7 @@ class MainWindow(QMainWindow):
         self.session: Path | None = None
         self.file_handler: logging.Handler | None = None
 
-        self.setWindowTitle("Помощник Break the Chains")
+        self.setWindowTitle(tr("Помощник Break the Chains"))
         self.setWindowIcon(icon("chain", theme.ACCENT))
         self.resize(1100, 680)
         self.setMinimumSize(960, 600)
@@ -301,7 +312,7 @@ class MainWindow(QMainWindow):
         left.setSpacing(0)
         title = QLabel("Break the Chains")
         title.setObjectName("appTitle")
-        version = QLabel(f"Помощник · v{__version__}")
+        version = QLabel(tr("Помощник · v{version}").format(version=__version__))
         version.setObjectName("appVersion")
         left.addWidget(title)
         left.addWidget(version)
@@ -309,15 +320,18 @@ class MainWindow(QMainWindow):
         self.nav.setObjectName("sidebar")
         self.nav.setFixedWidth(170)
         self.nav.setIconSize(QSize(20, 20))
-        for icon_name, label in (("phone", "Телефон"), ("sliders", "Настройки"),
-                                 ("help", "Справка")):
+        for icon_name, label in (("phone", tr("Телефон")), ("sliders", tr("Настройки")),
+                                 ("help", tr("Справка"))):
             self.nav.addItem(QListWidgetItem(icon(icon_name), label))
         left.addWidget(self.nav, 1)
 
         self.pages = QStackedWidget()
         self.pages.addWidget(_page(self._group_connection(), self._hint_game()))
         self.pages.addWidget(_page(self._group_runs(), self._group_behavior()))
-        self.pages.addWidget(_page(self._group_help(), self._group_about()))
+        self.pages.addWidget(_page(self._group_language(), self._group_help(),
+                                   self._group_about()))
+        # Язык меняется пересозданием окна, поэтому во время работы бота он заперт
+        self.settings_widgets.append(self.language_box)
         self.pages.setMinimumWidth(340)
         self.pages.setMaximumWidth(430)
         self.nav.currentRowChanged.connect(self.pages.setCurrentIndex)
@@ -328,7 +342,7 @@ class MainWindow(QMainWindow):
         right.addWidget(self._hero())
         self.preview = Preview()
         right.addWidget(self.preview)
-        self.screen_label = QLabel("Распознано: —")
+        self.screen_label = QLabel(tr("Распознано: —"))
         self.screen_label.setObjectName("dim")
         self.screen_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         right.addWidget(self.screen_label)
@@ -362,15 +376,15 @@ class MainWindow(QMainWindow):
         lay.addLayout(text, 1)
         lay.addWidget(self.start_btn)
         self._set_start_button(running=False)
-        self._set_hero("Не готово", "Подключи телефон и нажми «Проверить»", theme.IDLE)
+        self._set_hero(tr("Не готово"), tr("Подключи телефон и нажми «Проверить»"), theme.IDLE)
         return hero
 
     def _stats(self) -> QHBoxLayout:
         row = QHBoxLayout()
         row.setSpacing(10)
-        self.stat_runs = self._stat(row, "забегов пройдено")
-        self.stat_depth = self._stat(row, "повышений глубины")
-        self.stat_time = self._stat(row, "время работы")
+        self.stat_runs = self._stat(row, tr("забегов пройдено"))
+        self.stat_depth = self._stat(row, tr("повышений глубины"))
+        self.stat_time = self._stat(row, tr("время работы"))
         self.stat_time.setText("0:00")
         return row
 
@@ -390,29 +404,29 @@ class MainWindow(QMainWindow):
         return value
 
     def _group_connection(self) -> QGroupBox:
-        box = QGroupBox("Подключение")
+        box = QGroupBox(tr("Подключение"))
         lay = QVBoxLayout(box)
         grid = QGridLayout()
         grid.setHorizontalSpacing(8)
         grid.setVerticalSpacing(6)
         grid.setColumnStretch(2, 1)
         self.row_adb = StatusRow(grid, 0, "ADB")
-        self.row_phone = StatusRow(grid, 1, "Телефон")
-        self.row_game = StatusRow(grid, 2, "Игра")
+        self.row_phone = StatusRow(grid, 1, tr("Телефон"))
+        self.row_game = StatusRow(grid, 2, tr("Игра"))
         lay.addLayout(grid)
 
         self.device_box = QComboBox()
-        self.device_box.setToolTip("Подключено несколько устройств: выбери нужное")
+        self.device_box.setToolTip(tr("Подключено несколько устройств: выбери нужное"))
         self.device_box.activated.connect(self._on_device_selected)
         self.device_box.hide()
         lay.addWidget(self.device_box)
 
         buttons = QHBoxLayout()
-        self.check_btn = QPushButton(icon("refresh"), "Проверить")
+        self.check_btn = QPushButton(icon("refresh"), tr("Проверить"))
         self.check_btn.clicked.connect(self.check_connection)
-        self.download_btn = QPushButton(icon("download"), "Скачать adb")
-        self.download_btn.setToolTip("Официальный набор Android platform-tools с сайта Google, "
-                                     "около 7 МБ")
+        self.download_btn = QPushButton(icon("download"), tr("Скачать adb"))
+        self.download_btn.setToolTip(tr("Официальный набор Android platform-tools с сайта "
+                                        "Google, около 7 МБ"))
         self.download_btn.clicked.connect(self.download_adb)
         self.download_btn.hide()
         buttons.addWidget(self.check_btn)
@@ -422,16 +436,16 @@ class MainWindow(QMainWindow):
         return box
 
     def _hint_game(self) -> QLabel:
-        return _hint("Открой в игре карту цепной кампании, где видна кнопка «Старт», и "
-                     "нажми «Проверить». Как подготовить телефон, написано в «Справке».")
+        return _hint(tr("Открой в игре карту цепной кампании, где видна кнопка «Старт», и "
+                        "нажми «Проверить». Как подготовить телефон, написано в «Справке»."))
 
     def _group_runs(self) -> QGroupBox:
         s = self.settings
         c = self.cfg.campaign
-        box = QGroupBox("Сколько забегов")
+        box = QGroupBox(tr("Сколько забегов"))
         lay = QVBoxLayout(box)
-        self.radio_all = QRadioButton("Пока есть стамина")
-        self.radio_limit = QRadioButton("Не больше")
+        self.radio_all = QRadioButton(tr("Пока есть стамина"))
+        self.radio_limit = QRadioButton(tr("Не больше"))
         group = QButtonGroup(box)
         group.addButton(self.radio_all)
         group.addButton(self.radio_limit)
@@ -446,8 +460,8 @@ class MainWindow(QMainWindow):
         limit_row.addStretch(1)
         lay.addWidget(self.radio_all)
         lay.addLayout(limit_row)
-        note = QLabel("Забег — один этап кампании: бои подряд до экрана «ПОБЕДА». "
-                      "Сколько в нём боёв, боту неважно.")
+        note = QLabel(tr("Забег — один этап кампании: бои подряд до экрана «ПОБЕДА». "
+                         "Сколько в нём боёв, боту неважно."))
         note.setObjectName("dim")
         note.setWordWrap(True)
         lay.addWidget(note)
@@ -460,16 +474,16 @@ class MainWindow(QMainWindow):
     def _group_behavior(self) -> QGroupBox:
         s = self.settings
         c = self.cfg.campaign
-        box = QGroupBox("Поведение")
+        box = QGroupBox(tr("Поведение"))
         lay = QVBoxLayout(box)
-        self.exit_on_defeat = QCheckBox("Закрыть игру при поражении")
+        self.exit_on_defeat = QCheckBox(tr("Закрыть игру при поражении"))
         self.exit_on_defeat.setChecked(bool(s.get("exit_on_defeat", c.exit_game_on_defeat)))
         # Пробный режим не запоминаем: включённый «навсегда», он выглядит как поломка
-        self.dry_run = QCheckBox("Пробный режим (ничего не нажимать)")
-        self.dry_run.setToolTip("Бот только смотрит и пишет в журнал, куда нажал бы. "
-                                "Играешь ты сам.")
-        self.save_frames = QCheckBox("Сохранять кадры (для отчёта об ошибке)")
-        self.save_frames.setToolTip("Кадр при каждой смене экрана попадёт в папку с логами")
+        self.dry_run = QCheckBox(tr("Пробный режим (ничего не нажимать)"))
+        self.dry_run.setToolTip(tr("Бот только смотрит и пишет в журнал, куда нажал бы. "
+                                   "Играешь ты сам."))
+        self.save_frames = QCheckBox(tr("Сохранять кадры (для отчёта об ошибке)"))
+        self.save_frames.setToolTip(tr("Кадр при каждой смене экрана попадёт в папку с логами"))
         self.save_frames.setChecked(bool(s.get("save_frames", c.save_frames)))
         for w in (self.exit_on_defeat, self.dry_run, self.save_frames):
             lay.addWidget(w)
@@ -480,7 +494,7 @@ class MainWindow(QMainWindow):
         return box
 
     def _log_card(self) -> QWidget:
-        box = QGroupBox("Журнал")
+        box = QGroupBox(tr("Журнал"))
         lay = QVBoxLayout(box)
         lay.setContentsMargins(6, 6, 6, 6)
         self.log_view = QPlainTextEdit()
@@ -494,28 +508,48 @@ class MainWindow(QMainWindow):
         self.log_view.setFont(mono)
         self.log_view.setMinimumHeight(90)
         lay.addWidget(self.log_view, 1)
-        open_btn = QPushButton(icon("folder"), "Открыть папку с логами")
+        open_btn = QPushButton(icon("folder"), tr("Открыть папку с логами"))
         open_btn.clicked.connect(self.open_logs)
         lay.addWidget(open_btn, 0, Qt.AlignmentFlag.AlignLeft)
         return box
 
-    def _group_help(self) -> QGroupBox:
-        box = QGroupBox("Как подготовить телефон")
+    def _group_language(self) -> QGroupBox:
+        # Заголовок на двух языках, чтобы его нашёл и тот, кто не читает текущий
+        box = QGroupBox("Язык / Language")
         lay = QVBoxLayout(box)
-        text = QLabel(HELP_TEXT)
+        self.language_box = QComboBox()
+        for code, name in available_languages():
+            self.language_box.addItem(name, code)
+        self.language_box.setCurrentIndex(self.language_box.findData(current_language()))
+        self.language_box.activated.connect(self._on_language_selected)
+        lay.addWidget(self.language_box)
+        return box
+
+    def _on_language_selected(self, _index: int) -> None:
+        code = self.language_box.currentData()
+        if code == current_language() or self.bot is not None:
+            return
+        self.settings["language"] = code
+        save_gui_settings(self.settings)
+        self.language_changed.emit(code)
+
+    def _group_help(self) -> QGroupBox:
+        box = QGroupBox(tr("Как подготовить телефон"))
+        lay = QVBoxLayout(box)
+        text = QLabel(tr(HELP_TEXT))
         text.setWordWrap(True)
         text.setTextFormat(Qt.TextFormat.RichText)
         lay.addWidget(text)
         return box
 
     def _group_about(self) -> QGroupBox:
-        box = QGroupBox("О программе")
+        box = QGroupBox(tr("О программе"))
         lay = QVBoxLayout(box)
-        text = QLabel(RISK_TEXT.replace("\n\n", "<br><br>"))
+        text = QLabel(tr(RISK_TEXT).replace("\n\n", "<br><br>"))
         text.setWordWrap(True)
         text.setObjectName("dim")
         lay.addWidget(text)
-        link = QPushButton(icon("link"), "Страница на GitHub")
+        link = QPushButton(icon("link"), tr("Страница на GitHub"))
         link.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(REPO_URL)))
         lay.addWidget(link, 0, Qt.AlignmentFlag.AlignLeft)
         return box
@@ -546,7 +580,7 @@ class MainWindow(QMainWindow):
         threading.Thread(target=work, daemon=True).start()
 
     def _bg_failed(self, error: Exception) -> None:
-        log.error("Ошибка: %s", error)
+        log.error(tr("Ошибка: %s"), error)
 
     # --- карточка статуса -----------------------------------------------
 
@@ -560,10 +594,10 @@ class MainWindow(QMainWindow):
 
     def _set_start_button(self, running: bool) -> None:
         if running:
-            self.start_btn.setText("■  Остановить")
+            self.start_btn.setText(tr("■  Остановить"))
             self.start_btn.setStyleSheet(theme.BTN_STOP_QSS)
         else:
-            self.start_btn.setText("▶  Запустить")
+            self.start_btn.setText(tr("▶  Запустить"))
             self.start_btn.setStyleSheet(theme.BTN_START_QSS)
 
     def _refresh_start(self) -> None:
@@ -578,8 +612,8 @@ class MainWindow(QMainWindow):
         self.checking = True
         self.keep_result = False
         self.check_btn.setEnabled(False)
-        self.check_btn.setText("Проверяю…")
-        self._set_hero("Проверяю телефон…", "Связываюсь через adb", theme.WARN)
+        self.check_btn.setText(tr("Проверяю…"))
+        self._set_hero(tr("Проверяю телефон…"), tr("Связываюсь через adb"), theme.WARN)
         self._bg(self._probe, self._probe_done, self._probe_failed)
 
     def _probe(self) -> dict:
@@ -611,7 +645,7 @@ class MainWindow(QMainWindow):
     def _probe_finished(self) -> None:
         self.checking = False
         self.check_btn.setEnabled(True)
-        self.check_btn.setText("Проверить")
+        self.check_btn.setText(tr("Проверить"))
 
     def _probe_done(self, info: dict) -> None:
         self._probe_finished()
@@ -620,12 +654,12 @@ class MainWindow(QMainWindow):
         self.device_box.hide()
 
         if not self.adb_path:
-            self.row_adb.set(theme.BAD, "не найден. Скачай его кнопкой ниже: это "
-                                        "официальный набор Android platform-tools")
+            self.row_adb.set(theme.BAD, tr("не найден. Скачай его кнопкой ниже: это "
+                                           "официальный набор Android platform-tools"))
             self.row_phone.set(theme.IDLE, "—")
             self.row_game.set(theme.IDLE, "—")
             self.download_btn.show()
-            self._set_hero("Нужен adb", "Через него программа видит экран и нажимает",
+            self._set_hero(tr("Нужен adb"), tr("Через него программа видит экран и нажимает"),
                            theme.BAD)
             self._refresh_start()
             return
@@ -639,15 +673,17 @@ class MainWindow(QMainWindow):
             self.device_box.show()
         if info.get("choose"):
             self.device_box.setCurrentIndex(-1)
-            self.row_phone.set(theme.WARN, "подключено несколько устройств, выбери нужное")
+            self.row_phone.set(theme.WARN, tr("подключено несколько устройств, выбери нужное"))
             self.row_game.set(theme.IDLE, "—")
-            self._set_hero("Выбери телефон", "Подключено несколько устройств", theme.WARN)
+            self._set_hero(tr("Выбери телефон"), tr("Подключено несколько устройств"),
+                           theme.WARN)
             self._refresh_start()
             return
         if "phone_error" in info:
             self.row_phone.set(theme.BAD, info["phone_error"])
             self.row_game.set(theme.IDLE, "—")
-            self._set_hero("Телефон не готов", "Подсказка на вкладке «Телефон»", theme.BAD)
+            self._set_hero(tr("Телефон не готов"), tr("Подсказка на вкладке «Телефон»"),
+                           theme.BAD)
             self._refresh_start()
             return
 
@@ -669,14 +705,15 @@ class MainWindow(QMainWindow):
             return
         self.last_screen = screen
         if screen == "map_start":
-            self.row_game.set(theme.OK, SCREEN_NAMES[screen])
+            self.row_game.set(theme.OK, screen_name(screen))
             if not self.keep_result:
-                self._set_hero("Готов к запуску", "Нажми «Запустить»", theme.OK)
+                self._set_hero(tr("Готов к запуску"), tr("Нажми «Запустить»"), theme.OK)
         else:
-            self.row_game.set(theme.WARN, f"{SCREEN_NAMES.get(screen, screen)}. Открой карту "
-                                          "цепной кампании с кнопкой «Старт»")
+            self.row_game.set(theme.WARN, tr("{screen}. Открой карту цепной кампании с "
+                                             "кнопкой «Старт»").format(screen=screen_name(screen)))
             if not self.keep_result:
-                self._set_hero("Телефон подключён", "Открой карту цепной кампании", theme.WARN)
+                self._set_hero(tr("Телефон подключён"), tr("Открой карту цепной кампании"),
+                               theme.WARN)
 
     # --- живое превью, пока бот не запущен ------------------------------
 
@@ -724,16 +761,17 @@ class MainWindow(QMainWindow):
         if stop.is_set() or self.bot is not None:
             return
         self.phone_ready = False
-        self.row_phone.set(theme.BAD, f"связь потеряна: {error}")
+        self.row_phone.set(theme.BAD, tr("связь потеряна: {error}").format(error=error))
         self.row_game.set(theme.IDLE, "—")
-        self._set_hero("Нет связи с телефоном", "Проверь кабель и нажми «Проверить»", theme.BAD)
+        self._set_hero(tr("Нет связи с телефоном"), tr("Проверь кабель и нажми «Проверить»"),
+                       theme.BAD)
         self._refresh_start()
 
     def _probe_failed(self, error: Exception) -> None:
         self._probe_finished()
         self.phone_ready = False
         self.row_phone.set(theme.BAD, str(error))
-        self._set_hero("Нет связи с телефоном", str(error), theme.BAD)
+        self._set_hero(tr("Нет связи с телефоном"), str(error), theme.BAD)
         self._refresh_start()
 
     def _on_device_selected(self, _index: int) -> None:
@@ -744,7 +782,7 @@ class MainWindow(QMainWindow):
 
     def download_adb(self) -> None:
         self.download_btn.setEnabled(False)
-        self.download_btn.setText("Скачиваю…")
+        self.download_btn.setText(tr("Скачиваю…"))
 
         def progress(got: int, total: int) -> None:
             self.bridge.call.emit(self._download_progress, (got, total))
@@ -754,26 +792,27 @@ class MainWindow(QMainWindow):
 
     def _download_progress(self, value: tuple[int, int]) -> None:
         got, total = value
-        self.download_btn.setText(f"Скачиваю… {got * 100 // total}%" if total
-                                  else f"Скачиваю… {got // 1024} КБ")
+        self.download_btn.setText(tr("Скачиваю… {percent}%").format(percent=got * 100 // total)
+                                  if total else
+                                  tr("Скачиваю… {kb} КБ").format(kb=got // 1024))
 
     def _download_finished(self) -> None:
         self.download_btn.setEnabled(True)
-        self.download_btn.setText("Скачать adb")
+        self.download_btn.setText(tr("Скачать adb"))
 
     def _download_done(self, adb: str) -> None:
         self._download_finished()
-        log.info("adb скачан: %s", adb)
+        log.info(tr("adb скачан: %s"), adb)
         self.check_connection()
 
     def _download_failed(self, error: Exception) -> None:
         self._download_finished()
-        log.error("Не удалось скачать adb: %s", error)
+        log.error(tr("Не удалось скачать adb: %s"), error)
         QMessageBox.critical(
-            self, "Не удалось скачать adb",
-            f"{error}\n\nМожно скачать вручную: developer.android.com/tools/releases/"
-            f"platform-tools и распаковать папку platform-tools рядом с программой "
-            f"({DATA_DIR}).")
+            self, tr("Не удалось скачать adb"),
+            tr("{error}\n\nМожно скачать вручную: developer.android.com/tools/releases/"
+               "platform-tools и распаковать папку platform-tools рядом с программой "
+               "({folder}).").format(error=error, folder=DATA_DIR))
 
     # --- запуск и остановка ---------------------------------------------
 
@@ -822,17 +861,17 @@ class MainWindow(QMainWindow):
         for w in self.settings_widgets:
             w.setEnabled(False)
         if dry_run:
-            self._set_hero("Пробный режим", "Играй сам: бот только смотрит", theme.WARN)
+            self._set_hero(tr("Пробный режим"), tr("Играй сам: бот только смотрит"), theme.WARN)
         else:
-            self._set_hero("Работает", "Телефон лучше не трогать", theme.OK)
+            self._set_hero(tr("Работает"), tr("Телефон лучше не трогать"), theme.OK)
 
     def stop(self) -> None:
         if self.bot is None:
             return
         self.bot.request_stop()
         self.start_btn.setEnabled(False)
-        self.start_btn.setText("Останавливаю…")
-        self._set_hero("Останавливаю…", "После текущего шага", theme.WARN)
+        self.start_btn.setText(tr("Останавливаю…"))
+        self._set_hero(tr("Останавливаю…"), tr("После текущего шага"), theme.WARN)
 
     def _tick(self) -> None:
         if self.bot is not None:
@@ -854,32 +893,33 @@ class MainWindow(QMainWindow):
             self._show_frame(raw, bot.screen)
         if bot.screen != self.last_screen and not bot.stop_requested:
             self.last_screen = bot.screen
-            mode = "Пробный режим" if bot.dry_run else "Работает"
-            self.hero_state.setText(f"{mode}: {SCREEN_NAMES.get(bot.screen or '', '…')}")
+            mode = tr("Пробный режим") if bot.dry_run else tr("Работает")
+            self.hero_state.setText(f"{mode}: {screen_name(bot.screen) if bot.screen else '…'}")
 
     def _finished(self, result: RunResult) -> None:
         if self.bot is not None:
             self._update_running(force=True)
         state, color = RESULT_STATE.get(result.kind, (result.kind, theme.BAD))
-        sub = f"Забегов: {result.runs_done}, глубина +{result.depth_ups}"
-        if result.kind != "stopped":
-            sub = f"{result.reason}. {sub}"
+        state = tr(state)
+        totals = tr("Забегов: {runs}, глубина +{depth}").format(runs=result.runs_done,
+                                                               depth=result.depth_ups)
+        sub = totals if result.kind == "stopped" else f"{result.reason}. {totals}"
         if result.game_closed:
-            sub += ". Игра закрыта"
+            sub += tr(". Игра закрыта")
         self._reset_after_run()
         self._set_hero(state, sub, color)
         if result.kind != "stopped":
             QApplication.beep()
-            notify(f"BtC бот остановлен: {STOP_TITLES.get(result.kind, result.kind)}",
-                   f"{result.reason}. Забегов: {result.runs_done}, "
-                   f"глубина +{result.depth_ups}")
+            title = tr(STOP_TITLES.get(result.kind, result.kind))
+            notify(tr("BtC бот остановлен: {title}").format(title=title),
+                   f"{result.reason}. {totals}")
 
     def _crashed(self, error: Exception) -> None:
-        log.error("Бот упал: %s", error)
+        log.error(tr("Бот упал: %s"), error)
         if self.bot is not None:
             self._update_running(force=True)
         self._reset_after_run()
-        self._set_hero("Ошибка", str(error), theme.BAD)
+        self._set_hero(tr("Ошибка"), str(error), theme.BAD)
         QApplication.beep()
 
     def _reset_after_run(self) -> None:
@@ -901,8 +941,7 @@ class MainWindow(QMainWindow):
 
     def _show_frame(self, frame: np.ndarray, screen: str | None) -> None:
         self.preview.set_frame(frame)
-        name = SCREEN_NAMES.get(screen or "", screen or "—")
-        self.screen_label.setText(f"Распознано: {name}")
+        self.screen_label.setText(tr("Распознано: {screen}").format(screen=screen_name(screen)))
 
     def _sync_limit(self) -> None:
         if self.bot is None:
@@ -924,13 +963,13 @@ class MainWindow(QMainWindow):
         try:
             open_path(path)
         except OSError as e:
-            QMessageBox.information(self, "Папка с логами", f"{path}\n\n{e}")
+            QMessageBox.information(self, tr("Папка с логами"), f"{path}\n\n{e}")
 
     def first_launch(self) -> bool:
         """Предупреждение о риске при первом запуске. False = пользователь отказался."""
         if not self.settings.get("accepted_risk"):
             answer = QMessageBox.warning(
-                self, "Перед началом", RISK_TEXT,
+                self, tr("Перед началом"), tr(RISK_TEXT),
                 QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
             if answer != QMessageBox.StandardButton.Ok:
                 return False
@@ -942,7 +981,8 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802 — имя из Qt
         if self.bot is not None:
             answer = QMessageBox.question(
-                self, "Бот работает", "Бот ещё работает. Остановить его и закрыть программу?")
+                self, tr("Бот работает"),
+                tr("Бот ещё работает. Остановить его и закрыть программу?"))
             if answer != QMessageBox.StandardButton.Yes:
                 event.ignore()
                 return

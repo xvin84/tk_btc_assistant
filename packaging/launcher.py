@@ -13,10 +13,17 @@ def self_test() -> int:
     from btc_bot.gui.theme import apply_theme
     from btc_bot.gui.window import MainWindow
 
+    from btc_bot import imaging
+
     app = QApplication([])
     apply_theme(app)
     window = MainWindow(Config())
-    return 0 if len(window.classifier.lib.templates) >= 10 else 1
+    templates = window.classifier.lib.templates
+    # Поиск шаблона на самом себе: проверяет numpy/Pillow-путь распознавания
+    tpl = next(iter(templates.values())).image
+    score, _ = imaging.match_template(tpl, tpl)
+    print(f"imaging={imaging.BACKEND} templates={len(templates)} score={score:.3f}")
+    return 0 if len(templates) >= 10 and score > 0.99 else 1
 
 
 if __name__ == "__main__":

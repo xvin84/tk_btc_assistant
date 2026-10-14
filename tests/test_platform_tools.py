@@ -15,6 +15,7 @@ def test_configured_adb_path_wins(tmp_path):
 def test_downloaded_adb_is_found_when_not_in_path(tmp_path, monkeypatch):
     monkeypatch.setattr(pt.shutil, "which", lambda name: None)
     monkeypatch.setattr(pt, "PLATFORM_TOOLS_DIR", tmp_path / "platform-tools")
+    monkeypatch.setattr(pt, "KNOWN_LOCATIONS", ())
     assert pt.find_adb() is None
     (tmp_path / "platform-tools").mkdir()
     (tmp_path / "platform-tools" / pt.adb_name()).write_bytes(b"")
@@ -49,3 +50,14 @@ def test_download_unpacks_archive(tmp_path, monkeypatch):
     assert progress[-1] == (len(data), len(data))
     assert urls[0].endswith(f"platform-tools-latest-{pt.download_os()}.zip")
     assert sys.platform == "win32" or (tmp_path / "platform-tools" / "adb").stat().st_mode & 0o111
+
+
+def test_adb_from_known_location_without_path(tmp_path, monkeypatch):
+    # Из Finder программа не видит Homebrew в PATH
+    brew = tmp_path / "homebrew" / "adb"
+    brew.parent.mkdir()
+    brew.write_bytes(b"")
+    monkeypatch.setattr(pt.shutil, "which", lambda name: None)
+    monkeypatch.setattr(pt, "PLATFORM_TOOLS_DIR", tmp_path / "platform-tools")
+    monkeypatch.setattr(pt, "KNOWN_LOCATIONS", (brew,))
+    assert pt.find_adb() == str(brew)

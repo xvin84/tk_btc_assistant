@@ -14,6 +14,7 @@ from typing import Callable, Iterator
 import numpy as np
 
 from . import imaging
+from .i18n import tr
 
 
 log = logging.getLogger("btc_bot")
@@ -74,13 +75,16 @@ class Device:
         try:
             proc = subprocess.run(cmd, capture_output=True, timeout=timeout or self.timeout)
         except FileNotFoundError as e:
-            raise AdbError(f"Не найден adb ({self.adb}). Установи Android platform-tools "
-                           f"и добавь adb в PATH или укажи путь в config.toml") from e
+            raise AdbError(tr("Не найден adb ({adb}). Установи Android platform-tools "
+                              "и добавь adb в PATH или укажи путь в config.toml")
+                           .format(adb=self.adb)) from e
         except subprocess.TimeoutExpired as e:
-            raise AdbError(f"adb не ответил за {timeout or self.timeout} с: {' '.join(args)}") from e
+            raise AdbError(tr("adb не ответил за {sec} с: {command}")
+                           .format(sec=timeout or self.timeout, command=" ".join(args))) from e
         if proc.returncode != 0:
             err = proc.stderr.decode(errors="replace").strip()
-            raise AdbError(f"adb {' '.join(args)} завершился с кодом {proc.returncode}: {err}")
+            raise AdbError(tr("adb {command} завершился с кодом {code}: {error}")
+                           .format(command=" ".join(args), code=proc.returncode, error=err))
         return proc.stdout
 
     def shell(self, command: str, timeout: float | None = None) -> str:
@@ -111,18 +115,20 @@ class Device:
                 self.connect(self.serial)
                 rows = [r for r in self.devices() if r[0] == self.serial]
             if not rows:
-                raise AdbError(f"Устройство {self.serial} не найдено в `adb devices`")
+                raise AdbError(tr("Устройство {serial} не найдено в `adb devices`")
+                               .format(serial=self.serial))
         if not rows:
-            raise AdbError("Телефон не виден в `adb devices`. Включи «Отладку по USB» и "
-                           "подключи кабель (режим USB «Передача файлов»)")
+            raise AdbError(tr("Телефон не виден в `adb devices`. Включи «Отладку по USB» и "
+                              "подключи кабель (режим USB «Передача файлов»)"))
         ready = [serial for serial, state in rows if state == "device"]
         if len(ready) > 1:
-            raise AdbError(f"Подключено несколько устройств ({', '.join(ready)}): "
-                           "укажи нужное через --serial")
+            raise AdbError(tr("Подключено несколько устройств ({serials}): "
+                              "укажи нужное через --serial").format(serials=", ".join(ready)))
         if not ready:
             serial, state = rows[0]
-            hint = STATE_HINTS.get(state, "проверь подключение и `adb devices`.")
-            raise AdbError(f"{serial} в состоянии {state}: {hint}")
+            hint = tr(STATE_HINTS.get(state, "проверь подключение и `adb devices`."))
+            raise AdbError(tr("{serial} в состоянии {state}: {hint}")
+                           .format(serial=serial, state=state, hint=hint))
         return ready[0]
 
     # --- экран и ввод ---------------------------------------------------
@@ -136,13 +142,13 @@ class Device:
                     data = _gunzip(data)
                 return decode_raw_screencap(data)
             except ValueError as e:
-                log.warning("Скриншот в режиме %s не разобрался (%s), перехожу на PNG",
+                log.warning(tr("Скриншот в режиме %s не разобрался (%s), перехожу на PNG"),
                             self.capture, e)
                 self.capture = "png"
         data = self._run("exec-out", "screencap", "-p")
         img = imaging.decode(data)
         if img is None:
-            raise AdbError("Не удалось декодировать скриншот (пустой ответ screencap?)")
+            raise AdbError(tr("Не удалось декодировать скриншот (пустой ответ screencap?)"))
         return img
 
     def tap(self, x: int, y: int) -> None:

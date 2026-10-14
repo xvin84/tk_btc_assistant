@@ -11,10 +11,19 @@ import zipfile
 from pathlib import Path
 from typing import Callable
 
+from .i18n import tr
 from .paths import DATA_DIR
 
 PLATFORM_TOOLS_DIR = DATA_DIR / "platform-tools"
 DOWNLOAD_URL = "https://dl.google.com/android/repository/platform-tools-latest-{os}.zip"
+# Программа, запущенная из Finder или ярлыка, получает урезанный PATH: смотрим
+# туда, куда adb ставят Homebrew и Android Studio
+KNOWN_LOCATIONS = (
+    Path("/opt/homebrew/bin/adb"),
+    Path("/usr/local/bin/adb"),
+    Path.home() / "Library" / "Android" / "sdk" / "platform-tools" / "adb",
+    Path.home() / "Android" / "Sdk" / "platform-tools" / "adb",
+)
 
 
 def adb_name() -> str:
@@ -28,8 +37,10 @@ def find_adb(configured: str = "adb") -> str | None:
     found = shutil.which("adb")
     if found:
         return found
-    local = PLATFORM_TOOLS_DIR / adb_name()
-    return str(local) if local.exists() else None
+    for candidate in (PLATFORM_TOOLS_DIR / adb_name(), *KNOWN_LOCATIONS):
+        if candidate.exists():
+            return str(candidate)
+    return None
 
 
 def download_os() -> str:
@@ -59,7 +70,7 @@ def download_platform_tools(progress: Callable[[int, int], None] | None = None) 
         zf.extractall(PLATFORM_TOOLS_DIR.parent)
     adb = PLATFORM_TOOLS_DIR / adb_name()
     if not adb.exists():
-        raise RuntimeError(f"В архиве {url} не нашлось {adb_name()}")
+        raise RuntimeError(tr("В архиве {url} не нашлось {name}").format(url=url, name=adb_name()))
     if sys.platform != "win32":
         for name in ("adb", "fastboot"):
             path = PLATFORM_TOOLS_DIR / name

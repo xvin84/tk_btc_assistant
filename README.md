@@ -1,290 +1,257 @@
-# Помощник для Tokyo Ghoul: Break the Chains
+# Break the Chains Assistant
 
-Программа для автопрохождения **цепной кампании** на Android-телефоне. Бои
-ведёт встроенный автобой игры, а программа переходит от боя к бою:
+**English** | [Русский](README.ru.md)
 
-1. на карте нажимает «Старт»;
-2. в «Расстановке» нажимает «СТАРТ»;
-3. в бою следит, чтобы «АВТО» был включён;
-4. после победы нажимает «Нажмите, чтобы продолжить»;
-5. собирает «Получить все», закрывает окно наград и баннер повышения глубины;
-6. повторяет, пока не кончится стамина или заданное число забегов.
+> ⚠️ **Beta.** The app is pre-1.0 — a few rough edges are expected. Please
+> report bugs and ideas in the [issues](https://github.com/xvin84/tk_btc_assistant/issues).
 
-![Окно программы во время работы](assets/screenshots/main.png)
+An auto-runner for the **Chain Campaign** in *Tokyo Ghoul: Break the Chains* on
+an Android phone. The game's built-in auto-battle fights; the app moves from
+battle to battle:
 
-**При поражении** бот останавливается и (по желанию) закрывает игру.
-**Если стамины не хватает**, бот просто останавливается. На незнакомом экране
-он ничего не нажимает; если такой экран висит дольше 90 секунд, бот
-останавливается и сохраняет скриншот.
+1. presses "Start" on the campaign map;
+2. presses "START" in the team setup;
+3. keeps "AUTO" switched on during battles;
+4. taps "Tap to continue" after a victory;
+5. collects "Claim all", closes the rewards window and the depth-up banner;
+6. repeats until stamina runs out or the chosen number of runs is done.
+
+![The app window while running](assets/screenshots/main-en.png)
+
+**On defeat** the bot stops and (optionally) closes the game. **When stamina
+runs out** it simply stops. It never taps an unfamiliar screen; if such a
+screen stays for more than 90 seconds, the bot stops and saves a screenshot.
 
 > [!WARNING]
-> Это неофициальная программа, не связанная с разработчиками игры.
-> Бот смотрит только на экран и нажимает через ADB, в клиент игры не лезет и
-> трафик не трогает. Но автоматизация нарушает правила большинства игр, и
-> **риск блокировки аккаунта не нулевой**. Пользуешься на свой страх и риск.
+> This is an unofficial app, not affiliated with the game's developers. The
+> bot only looks at the screen and taps through ADB — it does not touch the game
+> client or its traffic. Still, automation breaks the rules of most games, and
+> **the risk of an account ban is not zero**. Use at your own risk.
 
-## Ограничения
+## Limitations
 
-- Игра должна быть на **русском языке**: бот узнаёт экраны по надписям.
-- Проверено на одном телефоне с экраном 2780×1264. На телефонах с другим
-  соотношением сторон что-то может не распознаваться. Тогда пришли
-  скриншоты (см. «Если что-то пошло не так»).
-- Только Android. Нужен компьютер и кабель (или отладка по Wi-Fi). Есть и
-  запуск прямо на телефоне через Termux, но он пока не проверялся.
+- The game must be set to **Russian**: the bot recognises screens by their
+  captions. The app itself speaks Russian and English.
+- Tested on one phone with a 2780×1264 screen. On phones with a different
+  aspect ratio some screens may not be recognised — send screenshots then (see
+  "If something goes wrong").
+- Android only. You need a computer (Windows, Linux or macOS) and a cable (or
+  Wi-Fi debugging). Running right on the phone via Termux also exists but has
+  not been tested yet.
 
-## Установка (Windows)
+## Installation
 
-1. Скачай `BtcAssistant-…-windows.zip` со страницы
-   [Releases](https://github.com/xvin84/tk_btc_assistant/releases/latest).
-2. Распакуй в любую папку и запусти `BtcAssistant.exe`.
-   Программа не подписана, поэтому Windows может показать «Система Windows
-   защитила ваш компьютер». Нажми «Подробнее» → «Выполнить в любом случае».
-3. Если на компьютере нет adb, программа предложит скачать его кнопкой
-   «Скачать adb»: это официальный набор Android platform-tools с сайта Google.
+Download the archive for your system from the
+[Releases](https://github.com/xvin84/tk_btc_assistant/releases/latest) page:
 
-Настройки, логи и скачанный adb хранятся рядом с `BtcAssistant.exe`.
+- **Windows** — `BtcAssistant-…-windows.zip`. Unzip it anywhere and run
+  `BtcAssistant.exe`. The app is not signed, so Windows may show "Windows
+  protected your PC": click "More info" → "Run anyway".
+- **Linux** (x86_64) — `BtcAssistant-…-linux-x86_64.tar.gz`. Unpack it and run
+  `BtcAssistant/BtcAssistant`. Built on Ubuntu 22.04, runs on newer distros too.
+- **macOS** (Apple Silicon) — `BtcAssistant-…-macos-arm64.zip`. Unzip it and move
+  `BtcAssistant.app` to Applications. The app is not signed: the first time,
+  right-click it → "Open" → "Open". On Intel Macs run it from source.
 
-## Подготовка телефона
+If there is no adb on the computer, the app offers to download it with the
+"Download adb" button: it is the official Android platform-tools from Google.
 
-1. Настройки → О телефоне → 7 раз нажми «Номер сборки»: включится режим разработчика.
-2. Настройки → Для разработчиков: включи **«Отладка по USB»**.
-   - Xiaomi/POCO: ещё **«Отладка по USB (настройки безопасности)»**, иначе нажатия не пройдут.
-   - OnePlus/realme/OPPO: если нажатия не проходят, включи «Отключить мониторинг разрешений».
-3. Там же включи **«Не выключать экран»** (при зарядке) и держи телефон на зарядке.
-4. Подключи кабель (режим USB «Передача файлов») и разреши на телефоне отладку
-   для этого компьютера. Лучше с галочкой «Всегда разрешать».
+Settings, logs and the downloaded adb are kept next to the program; on macOS
+(and when that folder is read-only) — in `~/Library/Application Support/BtcAssistant`
+or `~/.local/share/BtcAssistant`.
 
-По Wi-Fi (Android 11+): «Для разработчиков» → «Беспроводная отладка» →
-«Подключить по коду», затем в командной строке `adb pair IP:порт` и
-`adb connect IP:порт`.
+## Preparing the phone
 
-## Как пользоваться
+1. Settings → About phone → tap "Build number" 7 times to enable developer mode.
+2. Settings → Developer options: enable **"USB debugging"**.
+   - Xiaomi/POCO: also **"USB debugging (Security settings)"**, otherwise taps won't go through.
+   - OnePlus/realme/OPPO: if taps don't go through, enable "Disable permission monitoring".
+3. In the same menu enable **"Stay awake"** and keep the phone charging.
+4. Connect the cable (USB mode "File transfer") and allow debugging for this
+   computer on the phone — preferably with "Always allow".
 
-1. Открой в игре карту **цепной кампании**, где видна кнопка «Старт».
-2. На вкладке «Телефон» нажми **«Проверить»**. Все три строки должны стать
-   зелёными, а в строке «Игра» должно быть «карта кампании, есть «Старт»».
-3. На вкладке «Настройки» выбери, сколько забегов пройти: «Пока есть
-   стамина» или конкретное число. Забег — один этап кампании, сколько в нём
-   боёв, боту неважно.
-4. В первый раз включи там же **«Пробный режим»** и пройди один забег руками.
-   Бот ничего не нажимает, только пишет в журнал, что видит и куда нажал бы.
-5. Выключи пробный режим и нажми **«Запустить»**. Остановить можно той же
-   кнопкой в любой момент. Пока бот работает, телефон лучше не трогать.
+Over Wi-Fi (Android 11+): Developer options → "Wireless debugging" → "Pair
+device with pairing code", then `adb pair IP:port` and `adb connect IP:port`
+in a terminal.
 
-Справа в окне видно экран телефона, что бот распознал, сколько забегов
-пройдено, сколько раз выросла глубина, и журнал действий.
+## Usage
 
-## Если что-то пошло не так
+1. Open the **Chain Campaign** map in the game, with the "Start" button visible.
+2. On the "Phone" tab press **"Check"**. All three rows should turn green, and
+   the "Game" row should read 'campaign map, "Start" is visible'.
+3. On the "Settings" tab choose how many runs to do: "While stamina lasts" or a
+   fixed number. A run is one campaign stage; the bot doesn't care how many
+   battles it has.
+4. The first time, enable **"Dry run"** there and play one run by hand. The bot
+   taps nothing and only logs what it sees and where it would tap.
+5. Turn dry run off and press **"Start"**. The same button stops the bot at any
+   moment. Better not to touch the phone while the bot works.
 
-Нажми «Открыть папку с логами»: там лог `bot.log` каждого запуска и кадр
-`frames/stop_*.jpg` с экраном, на котором бот остановился. Создай
-[issue](https://github.com/xvin84/tk_btc_assistant/issues) и приложи их.
-Если бот не узнаёт какой-то экран, включи «Сохранять кадры» и запусти ещё
-раз: тогда в папке будет кадр каждого экрана.
+The right side of the window shows the phone screen, what the bot recognised,
+runs done, depth-ups and the action log. The interface language is switched on
+the "Help" tab.
+
+## If something goes wrong
+
+Press "Open log folder": every run has its `bot.log` and a `frames/stop_*.jpg`
+frame with the screen the bot stopped on. Open an
+[issue](https://github.com/xvin84/tk_btc_assistant/issues/new/choose) and attach
+them. If the bot doesn't recognise some screen, enable "Save frames" and run
+again: the folder will then have a frame of every screen. There is a separate
+issue template for such frames, "The bot doesn't recognise a screen".
+
+Version history is in [CHANGELOG.en.md](CHANGELOG.en.md).
 
 ---
 
-## Запуск из исходников
+## Running from source
 
-Нужен **[uv](https://docs.astral.sh/uv/)** и **adb** (или кнопка «Скачать
-adb» в окне).
+You need **[uv](https://docs.astral.sh/uv/)** and **adb** (or the "Download
+adb" button in the window).
 
 ```bash
 git clone https://github.com/xvin84/tk_btc_assistant.git
 cd tk_btc_assistant
 uv sync
-uv run btc-bot gui        # окно
-uv run btc-bot doctor     # или командная строка: проверить телефон
+uv run btc-bot gui        # the window
+uv run btc-bot doctor     # or the command line: check the phone
 ```
 
-`uv sync` создаёт окружение `.venv` и ставит туда зависимости из `uv.lock`.
-Системный Python он не трогает.
+`uv sync` creates a `.venv` and installs the dependencies from `uv.lock`; the
+system Python is left alone. The window is built with Qt (PySide6), which uv
+installs too. On Debian/Ubuntu Qt may need `sudo apt install libxcb-cursor0`.
 
-Окно сделано на Qt (PySide6), uv поставит его сам. На Debian/Ubuntu Qt может
-попросить системную библиотеку: `sudo apt install libxcb-cursor0`.
+adb on Linux: Arch `sudo pacman -S android-tools`, Debian/Ubuntu
+`sudo apt install adb`. If `adb devices` says `no permissions`, you need udev
+rules (the `android-udev` package on Arch), then reconnect the cable.
 
-adb на Linux: Arch `sudo pacman -S android-tools`, Debian/Ubuntu
-`sudo apt install adb`. Если `adb devices` пишет `no permissions`, нужны
-udev-правила (в Arch пакет `android-udev`), потом переподключи кабель.
-
-### Командная строка
+### Command line
 
 ```bash
-uv run btc-bot doctor                # связь, телефон, текущий экран
-uv run btc-bot run --dry-run         # пробный режим
-uv run btc-bot run                   # пока не кончится стамина
-uv run btc-bot run --max-runs 3      # три забега и стоп
-uv run btc-bot run --save-frames     # плюс кадр при каждой смене экрана
+uv run btc-bot doctor                # connection, phone, current screen
+uv run btc-bot run --dry-run         # dry run
+uv run btc-bot run                   # until stamina runs out
+uv run btc-bot run --max-runs 3      # three runs and stop
+uv run btc-bot run --save-frames     # plus a frame on every screen change
 ```
 
-Остановить можно по Ctrl+C. Лог и кадры каждого запуска лежат в
-`logs/<дата>/`. Настройки (лимиты, таймауты, закрывать ли игру) лежат в
-`config.toml`, шаблон с пояснениями в `config.example.toml`. Окно читает тот
-же `config.toml`, а свои переключатели запоминает в `gui.json`.
+Stop with Ctrl+C. The log and frames of every run go to `logs/<date>/`.
+Settings (limits, timeouts, whether to close the game) live in `config.toml`;
+`config.example.toml` is a commented template. The window reads the same
+`config.toml` and remembers its own switches in `gui.json`. The command line
+speaks Russian.
 
-### Запуск прямо на телефоне (Termux)
+### Running right on the phone (Termux)
 
 > [!NOTE]
-> Этот режим пока **не проверялся** на живом телефоне: тесты проходят, но
-> реального запуска в Termux ещё не было. Если попробуешь, напиши в issue,
-> как прошло.
+> This mode has **not been tested** on a real phone yet: the tests pass, but
+> nobody has run it in Termux. If you try it, tell us in an issue how it went.
 
-Бот может работать на самом телефоне, без компьютера. Код тот же: в
-[Termux](https://termux.dev) ставятся Python, numpy и Pillow, а adb телефона
-подключается к самому себе по адресу `127.0.0.1:5555`. OpenCV на телефоне не
-нужен: без него бот распознаёт экраны через numpy, с теми же оценками.
+The bot can run on the phone itself, without a computer. The code is the same:
+[Termux](https://termux.dev) gets Python, numpy and Pillow, and the phone's adb
+connects to itself at `127.0.0.1:5555`. OpenCV is not needed on the phone:
+without it the bot matches screens with numpy, with the same scores.
 
-#### 1. Приложения
-
-Termux ставь **из F-Droid или с GitHub**: версия в Google Play устарела и не работает.
-
-- **Termux** — обязательно;
-- **Termux:API** — уведомление в шторку, когда бот остановится;
-- **Termux:Widget** — запуск бота кнопкой с рабочего стола.
-
-#### 2. Проект и зависимости
-
-В Termux:
-
-```bash
-pkg install -y git
-git clone https://github.com/xvin84/tk_btc_assistant.git
-cd tk_btc_assistant
-bash termux/setup.sh               # Python, numpy, Pillow, adb
-```
-
-#### 3. Настройки телефона
-
-- Termux → «Батарея» → **«Без ограничений»**, иначе Android усыпит его ночью.
-- «Для разработчиков» → **«Отключить ограничения для дочерних процессов»**
-  (Android 14+). Иначе система может убить Python или adb в фоне.
-  На Android 12–13 вместо этого один раз с компьютера:
-  `adb shell settings put global settings_enable_monitor_phantom_procs false`.
-- «Для разработчиков» → **«Не выключать экран»**, телефон на зарядке.
-
-#### 4. Подключить adb к самому себе
-
-Нужно один раз после каждой перезагрузки телефона. Есть два способа.
-
-**С компьютера (проще).** Подключи кабель и выполни на компьютере
-`adb tcpip 5555`. Кабель после этого можно отключить. В Termux:
-
-```bash
-python -m btc_bot connect
-```
-
-На телефоне появится «Разрешить отладку?»: отметь «Всегда разрешать» и нажми «Разрешить».
-
-**Без компьютера (нужен Wi-Fi).** «Для разработчиков» → «Беспроводная отладка» → включить.
-
-1. Один раз сделай сопряжение. Открой Termux и настройки в режиме
-   разделённого экрана, там нажми «Подключение устройства с помощью кода».
-   Затем в Termux:
+1. Install **Termux** from F-Droid or GitHub (the Google Play build is outdated),
+   optionally **Termux:API** (a notification when the bot stops) and
+   **Termux:Widget** (a home-screen button).
+2. In Termux:
    ```bash
-   python -m btc_bot pair <порт из окна с кодом> <шестизначный код>
+   pkg install -y git
+   git clone https://github.com/xvin84/tk_btc_assistant.git
+   cd tk_btc_assistant
+   bash termux/setup.sh               # Python, numpy, Pillow, adb
    ```
-2. После каждой перезагрузки в Termux:
-   ```bash
-   python -m btc_bot connect      # порт найдётся сам; если нет: --port <порт>
-   ```
+3. Termux → Battery → **"Unrestricted"**; Developer options → **"Disable child
+   process restrictions"** (Android 14+; on Android 12–13 run
+   `adb shell settings put global settings_enable_monitor_phantom_procs false`
+   once from a computer); **"Stay awake"** with the phone charging.
+4. Connect adb to itself once after every reboot: either run `adb tcpip 5555`
+   from a computer and then `python -m btc_bot connect` in Termux, or pair with
+   wireless debugging (`python -m btc_bot pair <port> <code>` once, then
+   `python -m btc_bot connect` after every reboot).
+5. Open the campaign map, return to Termux and run `bash termux/btc-bot.sh`
+   (or the **BtC-bot** widget). Arguments go to `run`, e.g.
+   `bash termux/btc-bot.sh --max-runs 20`.
 
-`connect` открывает постоянный порт 5555, который живёт до перезагрузки.
-Отключать Wi-Fi или беспроводную отладку после этого можно.
-На этот порт без твоего «Разрешить» на экране никто не подключится. Но
-незнакомые запросы отладки не подтверждай.
+The step-by-step version with all details is in the
+[Russian README](README.ru.md#запуск-прямо-на-телефоне-termux).
 
-#### 5. Запуск
+### Recording screenshots
 
-1. Открой игру на карте цепной кампании.
-2. Вернись в Termux и запусти `bash termux/btc-bot.sh`. Можно кнопкой
-   **BtC-bot** из виджета Termux:Widget.
-3. Бот сам выведет игру на передний план и начнёт работу. Аргументы
-   передаются в `run`, например `bash termux/btc-bot.sh --max-runs 20`.
-
-Когда бот остановится (лимит, стамина, поражение), придёт уведомление. Лог
-лежит в `logs/` внутри проекта. Остановить вручную: открой Termux и нажми
-Ctrl+C, или закрой сессию через уведомление Termux («Exit»).
-
-### Запись скриншотов
-
-Нужна, чтобы собрать экраны, которых ещё нет: поражение, диалоги, окно
-нехватки стамины.
+Used to collect screens the bot doesn't know yet: defeat, dialogs, the
+out-of-stamina window.
 
 ```bash
-uv run btc-bot record                 # скриншот при каждом касании экрана
-uv run btc-bot record --interval 2    # плюс скриншот каждые 2 секунды
-uv run btc-bot record --no-taps --interval 1   # только по таймеру
-uv run btc-bot snap defeat            # один скриншот текущего экрана
+uv run btc-bot record                 # a screenshot on every touch
+uv run btc-bot record --interval 2    # plus one every 2 seconds
+uv run btc-bot record --no-taps --interval 1   # timer only
+uv run btc-bot snap defeat            # one screenshot of the current screen
 ```
 
-Запись идёт в `recordings/<дата>/`:
+Recordings go to `recordings/<date>/`: `tap_0001.jpg` (the screen right before
+the touch), `annotated/tap_0001.jpg` (the same with the touch circled) and
+`taps.jsonl` (touch coordinates). If the circle is off, add `--rotation 3` (or `1`).
 
-- `tap_0001.jpg`: экран за мгновение до касания;
-- `annotated/tap_0001.jpg`: то же, место касания обведено;
-- `taps.jsonl`: координаты касаний (экранные и рабочие).
+## How recognition works
 
-Если кружок стоит не там, где ты нажимал, добавь `--rotation 3` (или `1`).
+A phone frame is scaled to a working width of 1280 px. Templates in
+`templates/` — captions and buttons of every screen — are cut at that scale;
+`templates/manifest.json` describes them and their sources. The "which screen
+is this" rules are in `btc_bot/screens.py`.
 
-## Как устроено распознавание
+The templates are cut from compressed screenshots (`samples/phone_1280/`). To
+make them sharper, put a full-size screenshot with the same name next to them
+(e.g. `map_start.png` from `snap`) and run `uv run btc-bot rebuild-templates`.
 
-Кадр с телефона уменьшается до рабочей ширины 1280 px. В этом масштабе
-вырезаны шаблоны из `templates/`: надписи и кнопки каждого экрана. Их
-описание и источники лежат в `templates/manifest.json`. Правила «какой это
-экран» описаны в `btc_bot/screens.py`.
-
-Сейчас шаблоны вырезаны из сжатых скриншотов (`samples/phone_1280/`). Чтобы
-сделать их точнее, положи туда же полноразмерный скриншот с тем же именем
-(например, `map_start.png` из `snap`) и выполни:
+A new template, e.g. for the defeat screen:
 
 ```bash
-uv run btc-bot rebuild-templates
-```
-
-Новый шаблон, например для экрана поражения:
-
-```bash
-uv run btc-bot classify samples/device/defeat.png --scores   # что видит бот
+uv run btc-bot classify samples/device/defeat.png --scores   # what the bot sees
 uv run btc-bot crop samples/device/defeat.png 70 95 320 165 --name defeat_title
 ```
 
-Шаблон `defeat_title` бот подхватит сам: правило для поражения уже есть.
+The bot picks up `defeat_title` by itself: the defeat rule already exists.
 
-## Разработка
+## Development
 
 ```bash
 uv run pytest
 ```
 
-Тесты прогоняют распознавание на всех образцах и имитируют забеги на
-скриншотах: полный забег, поражение, нехватку стамины, выключенный автобой.
-Окно тоже проверяется: без экрана (Qt offscreen) оно проходит забег на
-подставном телефоне и останавливается кнопкой.
+The tests run recognition on every sample and simulate runs on screenshots:
+a full run, defeat, running out of stamina, auto-battle switched off. The window
+is tested too: headless (Qt offscreen) it goes through a run on a fake phone and
+stops with the button.
 
-Сборка программы с окном (PyInstaller):
+Building the app (PyInstaller; the built app matches screens with numpy and
+Pillow, without OpenCV):
 
 ```bash
 uv sync --group build
 uv run pyinstaller packaging/btc-bot.spec --noconfirm   # → dist/BtcAssistant/
 ```
 
-Релизы собирает GitHub Actions (`.github/workflows/release.yml`). Чтобы
-выпустить версию, подними её в `pyproject.toml` и `btc_bot/__init__.py`, затем:
+Releases are built by GitHub Actions (`.github/workflows/release.yml`). To
+release a version, bump it in `pyproject.toml` and `btc_bot/__init__.py`, add a
+section to `CHANGELOG.md` and `CHANGELOG.en.md`, then:
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.3.0
+git push origin v0.3.0
 ```
 
-Через несколько минут на странице Releases появится архив для Windows.
+A few minutes later archives for Windows, Linux and macOS appear on the Releases
+page, and the release text is built from the changelogs (`scripts/release_notes.py`).
 
-### Что дальше
+### What's next
 
-- шаблоны для поражения, диалогов и окна стамины (нужны скриншоты);
-- своя боевая логика вместо автобоя: выбор и слияние карт, Weak, атрибуты.
-  Заметки по механикам лежат в [`docs/GAME_NOTES.md`](docs/GAME_NOTES.md).
+- templates for defeat, dialogs and the stamina window (screenshots needed);
+- custom battle logic instead of the auto-battle: card picking and merging, Weak,
+  attributes. Notes on the mechanics are in [`docs/GAME_NOTES.md`](docs/GAME_NOTES.md) (Russian).
 
-## Лицензия
+## License
 
-[MIT](LICENSE). Tokyo Ghoul и Tokyo Ghoul: Break the Chains принадлежат их
-правообладателям. Скриншоты и вырезанные из них шаблоны лежат в репозитории
-только для распознавания экранов.
+[MIT](LICENSE). Tokyo Ghoul and Tokyo Ghoul: Break the Chains belong to their
+respective owners. Screenshots and templates cut from them are in the repository
+only for screen recognition.

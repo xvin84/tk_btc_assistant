@@ -19,6 +19,7 @@ import numpy as np
 from . import screens as S
 from .adb import AdbError
 from .config import CampaignConfig
+from .i18n import tr
 from .screens import Classifier, Detection
 from .vision import WORK_WIDTH, normalize, save_image
 
@@ -107,8 +108,8 @@ class CampaignBot:
     # --- основной цикл --------------------------------------------------
 
     def run(self) -> RunResult:
-        mode = " (пробный режим: ничего не нажимаю)" if self.dry_run else ""
-        log.info("Бот запущен%s. Игра: %s", mode, self.package or "не определена")
+        mode = tr(" (пробный режим: ничего не нажимаю)") if self.dry_run else ""
+        log.info(tr("Бот запущен%s. Игра: %s"), mode, self.package or tr("не определена"))
         try:
             while True:
                 self._check_stop_request()
@@ -117,9 +118,10 @@ class CampaignBot:
                     self.adb_failures = 0
                 except AdbError as e:
                     self.adb_failures += 1
-                    log.warning("Сбой ADB (%d/%d): %s", self.adb_failures, MAX_ADB_FAILURES, e)
+                    log.warning(tr("Сбой ADB (%d/%d): %s"), self.adb_failures,
+                                MAX_ADB_FAILURES, e)
                     if self.adb_failures >= MAX_ADB_FAILURES:
-                        raise StopBot("error", f"ADB не отвечает: {e}") from e
+                        raise StopBot("error", tr("ADB не отвечает: {error}").format(error=e)) from e
                     self.clock.sleep(2.0)
                     continue
                 self._check_stop_request()
@@ -145,7 +147,7 @@ class CampaignBot:
 
     def _check_stop_request(self) -> None:
         if self._stop_requested.is_set():
-            raise StopBot("stopped", "Остановлено пользователем")
+            raise StopBot("stopped", tr("Остановлено пользователем"))
 
     # --- смена экрана ---------------------------------------------------
 
@@ -154,7 +156,10 @@ class CampaignBot:
         self.screen = screen
         self.screen_since = now
         self.frame_no += 1
-        log.info("Экран: %s%s", screen, f" (был {prev})" if prev else "")
+        if prev:
+            log.info(tr("Экран: %s (был %s)"), screen, prev)
+        else:
+            log.info(tr("Экран: %s"), screen)
         if screen != S.UNKNOWN:
             self.last_known = screen
         if self.cfg.save_frames:
@@ -169,10 +174,10 @@ class CampaignBot:
             self.auto_off_streak = 0
         elif screen == S.VICTORY:
             self.runs_done += 1
-            log.info("Победа! Пройдено забегов: %d", self.runs_done)
+            log.info(tr("Победа! Пройдено забегов: %d"), self.runs_done)
         elif screen == S.DEPTH_UP:
             self.depth_ups += 1
-            log.info("Глубина кампании повышена (за сессию: %d)", self.depth_ups)
+            log.info(tr("Глубина кампании повышена (за сессию: %d)"), self.depth_ups)
 
     def _time_on_screen(self, now: float) -> float:
         return now - self.screen_since
@@ -181,11 +186,12 @@ class CampaignBot:
 
     def _on_map_start(self, det: Detection, frame, now: float) -> None:
         if self.cfg.max_runs and self.runs_done >= self.cfg.max_runs:
-            raise StopBot("done", f"Пройдено забегов: {self.runs_done}, лимит достигнут")
+            raise StopBot("done", tr("Пройдено забегов: {runs}, лимит достигнут")
+                          .format(runs=self.runs_done))
         if self.start_taps >= self.cfg.max_start_taps:
             raise StopBot("no_stamina",
-                          f"Нажал «Старт» {self.start_taps} раза, но расстановка не открылась. "
-                          "Скорее всего, закончилась стамина")
+                          tr("Нажал «Старт» {taps} раза, но расстановка не открылась. "
+                             "Скорее всего, закончилась стамина").format(taps=self.start_taps))
         if self._tap("map_start", det.center("btn_map_start")):
             self.start_taps += 1
             if self.awaiting_setup_since is None:
@@ -220,7 +226,7 @@ class CampaignBot:
         if point is None:
             return
         if self.setup_taps >= self.cfg.max_start_taps:
-            raise StopBot("error", "Нажимаю «СТАРТ» в расстановке, но бой не начинается")
+            raise StopBot("error", tr("Нажимаю «СТАРТ» в расстановке, но бой не начинается"))
         if self._tap("battle_start", point):
             self.setup_taps += 1
 
@@ -235,11 +241,12 @@ class CampaignBot:
         if self.auto_off_streak < self.cfg.auto_off_frames or match is None:
             return
         if self.auto_taps >= self.cfg.max_auto_taps:
-            raise StopBot("error", f"«АВТО» не включается после {self.auto_taps} нажатий")
+            raise StopBot("error", tr("«АВТО» не включается после {taps} нажатий")
+                          .format(taps=self.auto_taps))
         if self._tap("auto", match.center):
             self.auto_taps += 1
             self.auto_off_streak = 0
-            log.info("Автобой был выключен, включаю")
+            log.info(tr("Автобой был выключен, включаю"))
 
     def _on_victory(self, det: Detection, frame, now: float) -> None:
         if self._time_on_screen(now) < self.cfg.overlay_tap_delay:
@@ -249,10 +256,10 @@ class CampaignBot:
 
     def _on_result_unknown(self, det: Detection, frame, now: float) -> None:
         if self._time_on_screen(now) >= self.cfg.defeat_confirm:
-            raise StopBot("defeat", "Экран итогов без «ПОБЕДА»: похоже на поражение")
+            raise StopBot("defeat", tr("Экран итогов без «ПОБЕДА»: похоже на поражение"))
 
     def _on_defeat(self, det: Detection, frame, now: float) -> None:
-        raise StopBot("defeat", "Поражение")
+        raise StopBot("defeat", tr("Поражение"))
 
     def _wait(self, det: Detection, frame, now: float) -> None:
         pass
@@ -272,20 +279,21 @@ class CampaignBot:
                 and self.screen not in (S.TEAM_SETUP, S.LOADING)
                 and now - self.awaiting_setup_since >= self.cfg.start_timeout):
             raise StopBot("no_stamina",
-                          "После «Старт» не открылась расстановка. Скорее всего, "
-                          "закончилась стамина")
+                          tr("После «Старт» не открылась расстановка. Скорее всего, "
+                             "закончилась стамина"))
         spent = self._time_on_screen(now)
         if self.screen == S.UNKNOWN:
             if spent >= self.cfg.unknown_timeout:
                 if self.last_known in BATTLE_SCREENS:
-                    raise StopBot("defeat", f"Незнакомый экран после боя дольше {spent:.0f} с: "
-                                            "похоже на поражение")
-                raise StopBot("error", f"Незнакомый экран дольше {spent:.0f} с")
+                    raise StopBot("defeat", tr("Незнакомый экран после боя дольше {sec:.0f} с: "
+                                               "похоже на поражение").format(sec=spent))
+                raise StopBot("error", tr("Незнакомый экран дольше {sec:.0f} с").format(sec=spent))
         elif self.screen == S.BATTLE:
             if spent >= self.cfg.battle_timeout:
-                raise StopBot("error", f"Бой идёт дольше {spent:.0f} с")
+                raise StopBot("error", tr("Бой идёт дольше {sec:.0f} с").format(sec=spent))
         elif spent >= self.cfg.state_timeout:
-            raise StopBot("error", f"Экран {self.screen} не меняется {spent:.0f} с")
+            raise StopBot("error", tr("Экран {screen} не меняется {sec:.0f} с")
+                          .format(screen=self.screen, sec=spent))
 
     # --- действия -------------------------------------------------------
 
@@ -304,9 +312,9 @@ class CampaignBot:
         self.last_taps[key] = now
         x, y = round(point[0] * self.scale), round(point[1] * self.scale)
         if self.dry_run:
-            log.info("[пробно] нажал бы %s в (%d, %d)", key, x, y)
+            log.info(tr("[пробно] нажал бы %s в (%d, %d)"), key, x, y)
             return False
-        log.info("Нажимаю %s в (%d, %d)", key, x, y)
+        log.info(tr("Нажимаю %s в (%d, %d)"), key, x, y)
         self.device.tap(x, y)
         return True
 
@@ -320,11 +328,11 @@ class CampaignBot:
         try:
             save_image(self.session_dir / "frames" / f"{name}.jpg", self.last_raw)
         except (OSError, ValueError) as e:
-            log.warning("Не удалось сохранить кадр %s: %s", name, e)
+            log.warning(tr("Не удалось сохранить кадр %s: %s"), name, e)
 
     def _finish(self, stop: StopBot) -> RunResult:
         level = logging.INFO if stop.kind in ("done", "no_stamina", "stopped") else logging.WARNING
-        log.log(level, "Остановка (%s): %s", stop.kind, stop.reason)
+        log.log(level, tr("Остановка (%s): %s"), stop.kind, stop.reason)
         self._save_frame(f"stop_{stop.kind}")
 
         exit_game = (stop.kind == "defeat" and self.cfg.exit_game_on_defeat) or \
@@ -332,15 +340,15 @@ class CampaignBot:
         closed = False
         if exit_game:
             if not self.package:
-                log.warning("Не знаю пакет игры, закрыть её не могу (укажи device.package)")
+                log.warning(tr("Не знаю пакет игры, закрыть её не могу (укажи device.package)"))
             elif self.dry_run:
-                log.info("[пробно] закрыл бы игру %s", self.package)
+                log.info(tr("[пробно] закрыл бы игру %s"), self.package)
             else:
-                log.info("Закрываю игру %s", self.package)
+                log.info(tr("Закрываю игру %s"), self.package)
                 try:
                     self.device.force_stop(self.package)
                     closed = True
                 except AdbError as e:
-                    log.error("Не удалось закрыть игру: %s", e)
-        log.info("Итого: забегов %d, повышений глубины %d", self.runs_done, self.depth_ups)
+                    log.error(tr("Не удалось закрыть игру: %s"), e)
+        log.info(tr("Итого: забегов %d, повышений глубины %d"), self.runs_done, self.depth_ups)
         return RunResult(stop.kind, stop.reason, self.runs_done, self.depth_ups, closed)

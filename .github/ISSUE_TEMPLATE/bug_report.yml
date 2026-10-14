@@ -1,0 +1,40 @@
+name: 🐞 Сообщить об ошибке / Report a bug
+description: Что-то работает не так, как ожидалось / Something doesn't work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Что произошло / What happened
+      description: >
+        Опишите проблему. Приложите `bot.log` и кадр `frames/stop_*.jpg` из папки
+        с логами (кнопка «Открыть папку с логами»). / Describe the problem and
+        attach `bot.log` and the `frames/stop_*.jpg` frame from the log folder.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Что ожидалось / What you expected
+    validations:
+      required: false
+  - type: textarea
+    id: steps
+    attributes:
+      label: Как воспроизвести / Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: false
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Диагностика / Diagnostics
+      description: >
+        Версия программы, ОС, модель телефона и разрешение экрана (видно в строке
+        «Телефон» или в `uv run btc-bot doctor`). / App version, OS, phone model
+        and screen resolution.
+      render: text
+    validations:
+      required: false

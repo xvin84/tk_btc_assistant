@@ -138,3 +138,20 @@ def test_live_preview_notices_campaign_map(app, make_window):
     wait(app, lambda: win.hero_state.text() == "Готов к запуску")
 
     assert win.screen_label.text().endswith(W.SCREEN_NAMES["map_start"])
+
+
+def test_window_in_english(app, make_window):
+    from btc_bot import i18n
+
+    i18n.set_language("en")
+    try:
+        win = make_window(probe=ready_probe())
+        assert win.start_btn.text() == "▶  Start"
+        assert [win.nav.item(i).text() for i in range(win.nav.count())] == \
+            ["Phone", "Settings", "Help"]
+        win.check_connection()
+        wait(app, lambda: not win.checking)
+        assert win.hero_state.text() == "Ready to start"
+        assert win.screen_label.text() == "Recognised: campaign map, \"Start\" is visible"
+    finally:
+        i18n.set_language("ru")

@@ -1,0 +1,38 @@
+name: 🖼 Бот не узнаёт экран / The bot doesn't recognise a screen
+description: >
+  Поражение, окно стамины, диалог или другой экран, на котором бот встаёт. /
+  Defeat, the stamina window, a dialog or any other screen the bot gets stuck on.
+labels: [new-screen]
+body:
+  - type: input
+    id: screen
+    attributes:
+      label: Какой это экран / Which screen is it
+      placeholder: поражение / нехватка стамины / ... — defeat / out of stamina / ...
+    validations:
+      required: true
+  - type: textarea
+    id: frames
+    attributes:
+      label: Кадры / Frames
+      description: >
+        Включите «Сохранять кадры» и запустите бота ещё раз: кадр каждого экрана
+        окажется в `frames/` папки с логами. Перетащите сюда полноразмерный кадр
+        этого экрана (лучше несколько). / Enable "Save frames", run the bot again
+        and drag full-size frames of this screen here.
+    validations:
+      required: true
+  - type: textarea
+    id: action
+    attributes:
+      label: Что нужно нажать / What should be tapped
+      description: Что бот должен сделать на этом экране. / What the bot should do here.
+    validations:
+      required: false
+  - type: input
+    id: phone
+    attributes:
+      label: Телефон и разрешение / Phone and resolution
+      placeholder: realme RMX3852, 2780×1264
+    validations:
+      required: false

@@ -12,6 +12,7 @@ from pathlib import Path
 from .adb import LOCAL_HOST, LOCAL_TCP_PORT, AdbError, Device, connect_local
 from .campaign import CampaignBot
 from .config import Config, load_config
+from .i18n import tr
 from .notify import notify
 from .paths import CONFIG_PATH, DATA_DIR
 from .platform_tools import find_adb
@@ -173,8 +174,8 @@ def resolve_package(device: Device, configured: str | None) -> str | None:
     installed = device.packages("funcat")
     if len(installed) == 1:
         return installed[0]
-    log.warning("Не понял, какой пакет у игры (на экране %s, установлены %s). "
-                "Укажи --package или device.package в config.toml", current, installed)
+    log.warning(tr("Не понял, какой пакет у игры (на экране %s, установлены %s). "
+                   "Укажи --package или device.package в config.toml"), current, installed)
     return None
 
 

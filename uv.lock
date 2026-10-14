@@ -447,7 +447,7 @@ wheels = [
 
 [[package]]
 name = "tk-btc-assistant"
-version = "0.2.1"
+version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -458,6 +458,7 @@ dependencies = [
 
 [package.dev-dependencies]
 build = [
+    { name = "pillow" },
     { name = "pyinstaller" },
 ]
 dev = [
@@ -473,7 +474,10 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-build = [{ name = "pyinstaller", specifier = ">=6.10" }]
+build = [
+    { name = "pillow", specifier = ">=10" },
+    { name = "pyinstaller", specifier = ">=6.10" },
+]
 dev = [
     { name = "pillow", specifier = ">=10" },
     { name = "pytest", specifier = ">=8" },
